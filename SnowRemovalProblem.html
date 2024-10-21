@@ -7597,32 +7597,31 @@ $$</p>
 $$
 T_u^m = T_o + T_b = \frac{l_u}{v_o^m} \times c_u + \frac{d_b^u}{v_b^m}
 $$</p>
-<p>Funkcja celu, czyli minimalizacja całkowitego czasu dla wszystkich maszyn i ulic:
+<p>Funkcja celu, czyli minimalizacja całkowitego czasu dla wszystkich maszyn i ulic:</p>
+<!-- $$
+\text{Min } \sum_{m=1}^{M} \sum_{u=1}^{U} \left( \frac{l_u}{v_o^m} \times c_u + \frac{d_b^u}{v_b^m} \right)
+$$ -->
 $$
-\text{Min } \sum_{m=1}^{M} \sum_{u=1}^{U} x_{mu} \times \left( \frac{l_u}{v_o^m} \times c_u + \frac{d_b^u}{v_b^m} \right)
-$$</p>
-<p>gdzie $x_{mu}$ to zmienna decyzyjna, która przyjmuje wartość 1, jeśli maszyna $m$ odśnieża ulicę $u$, a 0 w przeciwnym razie.</p>
+\text{Min } \sum_{m=1}^{M} \sum_{u=1}^{U} \left( \frac{l_u}{v_o^m} \times c_u + \frac{d_b^u}{v_b^m} \right)
+$$<p>gdzie $x_{mu}$ to zmienna decyzyjna, która przyjmuje wartość 1, jeśli maszyna $m$ odśnieża ulicę $u$, a 0 w przeciwnym razie.</p>
 <h2 id="Ograniczenia">Ograniczenia<a class="anchor-link" href="#Ograniczenia">¶</a></h2><ol>
-<li><p><strong>Zasoby paliwa</strong>: Maszyna $m$ nie może przekroczyć swojego zasobu paliwa podczas odśnieżania ulic:
-$$
+<li><p><strong>Zasoby paliwa</strong>: Maszyna $m$ nie może przekroczyć swojego zasobu paliwa podczas odśnieżania ulic:</p>
+<!-- $$
 \sum_{u=1}^{U} x_{mu} \times l_u \leq b_m
-$$</p>
-<p>gdzie $b_m$ to maksymalna ilość paliwa dla maszyny $m$.</p>
+$$ -->
+$$
+\sum_{u \in L_m} l_u \leq b_m
+$$<p>gdzie $b_m$ to maksymalna ilość paliwa dla maszyny $m$, podczas gdy $L_m$ to zbiór ulic przypisanych danej maszynie.</p>
 </li>
 <li><p><strong>Zasoby materiałów (piasek/sól)</strong>: Maszyna $m$ nie może przekroczyć swojego zasobu materiałów do posypywania dróg:
 $$
-\sum_{u=1}^{U} x_{mu} \times c_u \leq ps_m
+\sum_{u \in L_m} c_u \leq ps_m
 $$</p>
 <p>gdzie $ps_m$ to maksymalna ilość materiałów dla maszyny $m$.</p>
 </li>
-<li><p><strong>Każda ulica musi być odśnieżona przez jedną maszynę</strong>:
-$$
-\sum_{m=1}^{M} x_{mu} = 1 \quad \forall u = 1, \dots, U
-$$</p>
-</li>
 <li><p><strong>Ograniczenia czasowe</strong> (opcjonalne): Możemy nałożyć maksymalny czas na odśnieżenie wszystkich ulic:
 $$
-\sum_{m=1}^{M} \sum_{u=1}^{U} x_{mu} \times T_u^m \leq T_{\text{max}}
+\sum_{m=1}^{M} \sum_{u \in L_m} T_u^m \leq T_{\text{max}}
 $$</p>
 <p>gdzie $T_{\text{max}}$ to maksymalny dozwolony czas na wykonanie zadania.</p>
 </li>
