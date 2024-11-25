@@ -60,7 +60,7 @@ class RoadClearingProblem:
         for street in self.solution.krawedzie:
             temp_danger += street.get_danger_level()
 
-        self.danger = temp_danger
+        return temp_danger
 
     def get_initial_path(self):
         for machine in self.machines:
@@ -83,3 +83,6 @@ class RoadClearingProblem:
                 street.snow_level += self.snowfall_forecast[stage]
 
             self.clear_streets(stage)
+
+            danger_per_stage.append(self.calculate_danger())
+
