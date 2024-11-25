@@ -27,7 +27,7 @@ class Machine:
                 if time_cost >= Tmax:
                     break
 
-                stage_route.append({"p1": current_location, "p2": next_location, "street": street})
+                stage_route.append(street)
                 current_location = next_location
 
             self.route.append(stage_route)
@@ -69,7 +69,17 @@ class RoadClearingProblem:
     def find_new_path(self):
         pass
 
+    def clear_streets(self, stage):
+        for machine in self.machines:
+            stage_route = machine.route[stage]
+
+            for street in stage_route:
+                street.snow_level = 0
+
     def mainloop(self):
-        for snowfall in self.snowfall_forecast:
+        danger_per_stage = []
+        for stage in range(len(self.snowfall_forecast)):
             for street in self.solution.krawedzie:
-                street.snow_level += snowfall
+                street.snow_level += self.snowfall_forecast[stage]
+
+            self.clear_streets(stage)
