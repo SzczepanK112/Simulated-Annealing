@@ -10,7 +10,8 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
         self.sasiedzi = []  # Lista sąsiednich wierzcholkow 
 
     def dodaj_sasiada(self, krawedz):
-        self.sasiedzi.append(krawedz)
+        if krawedz not in self.sasiedzi:  # Dodaj tylko jeśli nie ma jeszcze takiego sąsiada
+            self.sasiedzi.append(krawedz)
 
     def __repr__(self):
         return f"({self.x}, {self.y})"
@@ -47,18 +48,26 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         self.baza = None  # Punkt początkowy (baza)
 
     def dodaj_baze(self, x, y):
-        # Ustawia punkt początkowy
+        # Sprawdzenie, czy wierzchołek o podanych współrzędnych już istnieje
+        for wierzcholek in self.wierzcholki:
+            if wierzcholek.x == x and wierzcholek.y == y:
+                self.baza = wierzcholek  # Ustaw bazę na istniejący wierzchołek
+                return
+            
+        # Jeśli wierzchołek nie istnieje, dodaj nowy jako bazę
         self.baza = Wierzcholek(x, y)
-        if self.baza not in self.wierzcholki:
-            self.wierzcholki.append(self.baza)
+        self.wierzcholki.append(self.baza)
 
     def dodaj_wierzcholek(self, x, y):
-        # Dodaje wierzchołek do grafu, jeśli nie istnieje.
+        # Sprawdzanie, czy wierzchołek o tych współrzędnych już istnieje
+        for wierzcholek in self.wierzcholki:
+            if wierzcholek.x == x and wierzcholek.y == y:
+                return wierzcholek  # Zwróć istniejący wierzchołek
 
-        w = Wierzcholek(x, y)
-        if w not in self.wierzcholki:
-            self.wierzcholki.append(w)
-        return w
+        # Jeśli wierzchołek nie istnieje, stwórz nowy
+        nowy_wierzcholek = Wierzcholek(x, y)
+        self.wierzcholki.append(nowy_wierzcholek)
+        return nowy_wierzcholek
 
     def get_edge(self, point1, point2):
         """
@@ -72,6 +81,12 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         Returns:
         - krawedz: Krawędź między wierzchołkami lub None, jeśli krawędź nie istnieje
         """
+        # Jeśli point1 i point2 są obiektami Wierzcholek, przekształamy je na krotki
+        if isinstance(point1, Wierzcholek):
+            point1 = (point1.x, point1.y)
+        if isinstance(point2, Wierzcholek):
+            point2 = (point2.x, point2.y)
+
         for krawedz in self.krawedzie:
             # Sprawdzamy, czy punkt1 jest początkiem krawędzi, a punkt2 końcem
             if (krawedz.start.x, krawedz.start.y) == point1 and (krawedz.koniec.x, krawedz.koniec.y) == point2:
@@ -84,14 +99,16 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
 
         w1 = self.dodaj_wierzcholek(*punkt1)
         w2 = self.dodaj_wierzcholek(*punkt2)
-        krawedz = Krawedz(w1, w2, priorytet, pasy)
-        self.krawedzie.append(krawedz)
+
+        krawedz_1 = Krawedz(w1, w2, priorytet, pasy)
+        self.krawedzie.append(krawedz_1)
+
+        krawedz_2 = Krawedz(w2, w1, priorytet, pasy)
+        self.krawedzie.append(krawedz_2)
 
         # Powiąż krawędź z wierzchołkami
         w1.dodaj_sasiada(w2)
-        if pasy > 1:
-            w2.dodaj_sasiada(w1)
-        # Jeśli krawędź/ulica ma tylko jeden pas, dodajemy tylko od wierzchołka startowego do końcowego
+        w2.dodaj_sasiada(w1)
 
     def __repr__(self):
         result = "Graf:\n"
