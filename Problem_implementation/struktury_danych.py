@@ -1,4 +1,5 @@
 import math
+import copy
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -20,6 +21,12 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
         if isinstance(other, Wierzcholek):
             return (self.x, self.y) == (other.x, other.y)
         return False
+    
+    def __hash__(self):
+        return hash((self.x, self.y))
+
+    def get_distance(self, other):
+        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
 class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
@@ -36,6 +43,9 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
 
     def __repr__(self):
         return f"{self.start} -> {self.koniec}"
+
+    def __eq__(self, other):
+        return self.start == other.start and self.koniec == other.koniec
 
     def get_danger_level(self):
         return self.snow_level * self.priorytet * self.pasy

@@ -1,7 +1,9 @@
 import random
+import math
+import copy
+import heapq
 import struktury_danych
-import wczytanie_mapy
-from typing import List, Union
+from typing import List, Union, Set
 
 
 class Machine:
@@ -11,6 +13,7 @@ class Machine:
 
     def generate_initial_route(self, road_layout, Tmax, number_of_stages):
         current_location = road_layout.baza
+        previous_location = None
 
         for stage_no in range(number_of_stages):
             time_cost = 0
@@ -22,12 +25,17 @@ class Machine:
                 next_location = random.choice(neighbors)  # Choose random neighbor as next location
                 street = road_layout.get_edge(current_location, next_location)
 
+                # Zapobiegamy łażenia w kółko
+                if next_location == previous_location and len(neighbors) > 1:
+                    continue
+
                 time_cost += street.oblicz_dlugosc() / self.speed
 
                 if time_cost >= Tmax:
                     break
 
                 stage_route.append(street)
+                previous_location = current_location
                 current_location = next_location
 
             self.route.append(stage_route)
@@ -47,68 +55,167 @@ class RoadClearingProblem:
         self.danger = float("inf")
         self.Tmax = Tmax
 
-    def calculate_danger(self):
-        temp_danger = 0
-        for street in self.solution.krawedzie:
-            temp_danger += street.get_danger_level()
-        return temp_danger
+        self.get_initial_path()
+
+    def simulated_annealing(self, initial_temperature: float, cooling_rate: float, max_iterations: int):
+        """
+        Implementacja algorytmu symulowanego wyżarzania, uwzględniająca etapy opadów śniegu.
+        """
+        # Inicjalizacja
+        current_solution = copy.deepcopy(self.machines)  # Kopia aktualnych maszyn i ich tras
+        best_solution = copy.deepcopy(current_solution)
+
+        # Oblicz początkowe zagrożenie na podstawie obecnego rozwiązania
+        current_danger = self.simulate_danger(current_solution)
+        best_danger = current_danger
+        temperature = initial_temperature
+
+        for iteration in range(max_iterations):
+            # Generowanie sąsiedniego rozwiązania
+            new_solution = None
+
+            while new_solution is None:
+                new_solution = self.generate_neighbor(current_solution)
+
+            # Symulacja nowego rozwiązania i obliczenie zagrożenia
+            new_danger = self.simulate_danger(new_solution)
+            print(new_danger)
+
+            # Oblicz różnicę zagrożenia
+            delta_danger = new_danger - current_danger
+
+            # Akceptacja rozwiązania na podstawie funkcji Boltzmanna
+            if delta_danger < 0 or random.random() < math.exp(-delta_danger / temperature):
+                current_solution = new_solution
+                current_danger = new_danger
+
+                # Aktualizacja najlepszego rozwiązania
+                if new_danger < best_danger:
+                    best_solution = copy.deepcopy(new_solution)
+                    best_danger = new_danger
+
+            # Schładzanie temperatury
+            temperature *= cooling_rate
+
+            # Warunek zakończenia
+            if temperature < 1e-3:
+                break
+
+        return best_solution, best_danger
+
+    def generate_neighbor(self, current_solution):
+        new_solution = current_solution.copy()
+        machine_to_modify = random.choice(new_solution)
+        self.change_path(machine_to_modify)  # Modyfikacja trasy jednej maszyny
+        return new_solution
 
     def get_initial_path(self):
         for machine in self.machines:
             machine.generate_initial_route(self.road_layout, self.Tmax, len(self.snowfall_forecast))
 
-    def find_new_path(self):
+    def change_path(self, machine: Machine):
         """
-        Generuje nowe trasy dla każdej maszyny w sposób zgodny z ograniczeniami.
+        Modyfikuje trasę maszyny, usuwając jedną krawędź i zastępując ją nową trasą naprawioną algorytmem A*.
+        Przenosi krawędzie do następnego etapu, jeśli Tmax zostanie przekroczone.
         """
-        for machine in self.machines:
-            new_route = []  # Nowa trasa dla danej maszyny
-            for stage_no in range(len(self.snowfall_forecast)):
-                current_location = self.road_layout.baza
-                time_cost = 0
-                stage_route = []
 
-                while True:
-                    # Wybór sąsiadów dostępnych na trasie
-                    neighbors = current_location.sasiedzi
-                    valid_neighbors = [
-                        n for n in neighbors 
-                        if self.road_layout.get_edge(current_location, n).snow_level <= 10  # Przejezdność
-                    ]
+        machine_copy = copy.deepcopy(machine)
+        new_route = machine_copy.route
 
-                    if not valid_neighbors:
-                        break  # Brak dostępnych sąsiadów
+        segment_idx = random.choice(range(len(new_route)))
+        edge_for_deletion_idx = random.choice(range(len(new_route[segment_idx])))
+        edge_for_deletion = new_route[segment_idx][edge_for_deletion_idx]
 
-                    # Wybór kolejnego wierzchołka
-                    next_location = random.choice(valid_neighbors)
-                    street = self.road_layout.get_edge(current_location, next_location)
+        self.road_layout.krawedzie.remove(edge_for_deletion)
+        edge_for_deletion.start.sasiedzi.remove(edge_for_deletion.koniec)
+        edge_for_deletion.koniec.sasiedzi.remove(edge_for_deletion.start)
 
-                    time_cost += street.dlugosc / machine.speed
-                    if time_cost >= self.Tmax:  # Sprawdzenie ograniczenia czasu
-                        break
+        repaired_path = self.repair_path_A_star(edge_for_deletion, self.road_layout)
 
-                    stage_route.append(street)
-                    current_location = next_location
+        if repaired_path is not None:
+            # Replace the deleted edge with the repaired path
+            new_route[segment_idx][edge_for_deletion_idx:edge_for_deletion_idx + 1] = repaired_path
 
-                new_route.append(stage_route)
-            machine.route = new_route
+            # Check and adjust route to respect Tmax
+            while True:
+                time = 0
+                edges_to_move = []
 
-    def sprawdz_dopuszczalnosc(self, trasa, Tmax, speed) -> bool:
-        """
-        Sprawdza, czy trasa spełnia wszystkie ograniczenia (czas, przejezdność, priorytety).
+                # Calculate total time for the current segment
+                for edge in new_route[segment_idx]:
+                    time += edge.dlugosc / machine.speed
 
-        Args:
-        - trasa: lista obiektów Krawedz
-        - Tmax: maksymalny czas trasy
-        - speed: prędkość maszyny
+                    # If time exceeds Tmax, prepare to move edges to the next segment
+                    if time > self.Tmax:
+                        # Start removing edges from the end of the segment
+                        edges_to_move.append(edge)
 
-        Returns:
-        - True, jeśli trasa jest dopuszczalna, False w przeciwnym razie.
-        """
-        czas_trasy = sum(street.dlugosc / speed for street in trasa)
-        przejezdnosc = all(street.snow_level <= 10 for street in trasa)
-        priorytety = all(street.priorytet >= 50 for street in trasa)  # Przykładowe ograniczenie
-        return czas_trasy <= Tmax and przejezdnosc and priorytety
+                # If no edges need to be moved, break the loop
+                if not edges_to_move:
+                    break
+
+                # Move excess edges to the next segment
+                if segment_idx < len(new_route) - 1:
+                    for edge in reversed(edges_to_move):
+                        new_route[segment_idx].remove(edge)
+                        new_route[segment_idx + 1].insert(0, edge)
+                else:
+                    # If it's the last segment, just remove the excess edges
+                    for edge in edges_to_move:
+                        new_route[segment_idx].remove(edge)
+
+        # Restore the original edge and neighborhood relationships
+        self.road_layout.krawedzie.append(edge_for_deletion)
+        edge_for_deletion.start.dodaj_sasiada(edge_for_deletion.koniec)
+        edge_for_deletion.koniec.dodaj_sasiada(edge_for_deletion.start)
+
+        return
+
+    @staticmethod
+    def repair_path_A_star(removed_edge, graph):
+
+        open_set = []
+        heapq.heappush(open_set, (0, removed_edge.start))
+        came_from = {}  # Przechowuje ścieżkę
+        g_score = {node: float('inf') for node in graph.wierzcholki}
+        g_score[removed_edge.start] = 0
+
+        while open_set:
+            _, current = heapq.heappop(open_set)
+
+            if current == removed_edge.koniec:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append(removed_edge.start)
+
+                path = path[::-1]
+                path_as_edges = []
+
+                for i in range(len(path) - 1):
+                    path_as_edges.append(graph.get_edge(path[i], path[i + 1]))
+
+                return path_as_edges
+
+            for neighbor in current.sasiedzi:
+
+                removed_edge_cost = 0
+
+                if current == removed_edge.koniec and neighbor == removed_edge.start or \
+                        current == removed_edge.start and neighbor == removed_edge.koniec:
+                    removed_edge_cost = float('inf')
+
+                tentative_g_score = g_score[current] + current.get_distance(neighbor) + removed_edge_cost
+                if tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score = tentative_g_score + removed_edge.koniec.get_distance(neighbor) \
+                              * graph.get_edge(current, neighbor).priorytet
+
+                    heapq.heappush(open_set, (f_score, neighbor))
+
+        return None  # Jeśli ścieżka nie istnieje
 
     def clear_streets(self, stage):
         """
@@ -120,27 +227,30 @@ class RoadClearingProblem:
                 for street in stage_route:
                     street.snow_level = 0
 
-    def mainloop(self):
-        danger_per_stage = []
+    def simulate_danger(self, machines: List[Machine]) -> float:
+        """
+        Symuluje zagrożenie dla podanego rozwiązania, przechodząc przez wszystkie etapy opadów śniegu.
+        :param machines: Lista maszyn z trasami do symulacji.
+        :return: Całkowity poziom zagrożenia.
+        """
+        # Skopiuj bieżący układ dróg, aby nie modyfikować stanu gry
+        simulated_solution = copy.deepcopy(self.solution)
+        total_danger = 0
 
         for stage in range(len(self.snowfall_forecast)):
-            # Aktualizacja poziomu śniegu na ulicach
-            for street in self.solution.krawedzie:
+            # Aktualizacja poziomu śniegu
+            for street in simulated_solution.krawedzie:
                 street.snow_level += self.snowfall_forecast[stage]
 
-            # Sprawdzenie poprawności tras i regeneracja tras w razie potrzeby
-            for machine in self.machines:
-                for stage_route in machine.route:
-                    if not self.sprawdz_dopuszczalnosc(stage_route, self.Tmax, machine.speed):
-                        self.find_new_path()  # Znalezienie nowej trasy, jeśli obecna jest niedopuszczalna
-                        break
+            # Odśnieżanie zgodnie z trasami maszyn
+            for machine in machines:
+                if stage < len(machine.route):  # Sprawdź, czy maszyna ma trasę dla bieżącego etapu
+                    for street in machine.route[stage]:
+                        street.snow_level = 0  # Usunięcie śniegu
 
-            # Odśnieżanie ulic
-            self.clear_streets(stage)
+            # Obliczenie zagrożenia po etapie
+            stage_danger = sum(street.get_danger_level() for street in simulated_solution.krawedzie)
+            total_danger += stage_danger
 
-            # Obliczanie poziomu zagrożenia po odśnieżaniu
-            stage_danger = self.calculate_danger()
-            danger_per_stage.append(stage_danger)
-
-        return danger_per_stage
+        return total_danger
 
