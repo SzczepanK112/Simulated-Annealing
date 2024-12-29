@@ -58,10 +58,7 @@ class RoadClearingProblem:
         self.get_initial_path()
 
     def simulated_annealing(self, initial_temperature: float, cooling_rate: float, max_iterations: int):
-        """
-        Implementacja algorytmu symulowanego wyżarzania, uwzględniająca etapy opadów śniegu.
-        """
-        # Inicjalizacja
+
         current_solution = copy.deepcopy(self.machines)  # Kopia aktualnych maszyn i ich tras
         best_solution = copy.deepcopy(current_solution)
 
@@ -79,10 +76,10 @@ class RoadClearingProblem:
 
             # Symulacja nowego rozwiązania i obliczenie zagrożenia
             new_danger = self.simulate_danger(new_solution)
-            print(new_danger)
 
             # Oblicz różnicę zagrożenia
             delta_danger = new_danger - current_danger
+            print(delta_danger)
 
             # Akceptacja rozwiązania na podstawie funkcji Boltzmanna
             if delta_danger < 0 or random.random() < math.exp(-delta_danger / temperature):
@@ -107,6 +104,14 @@ class RoadClearingProblem:
         new_solution = current_solution.copy()
         machine_to_modify = random.choice(new_solution)
         self.change_path(machine_to_modify)  # Modyfikacja trasy jednej maszyny
+        # Inna definicja sąsiedztwa -> stwórz trasę od nowa?
+        # -> Usuń trasę od wierzchołka i generuj trasę od tego punktu od nowa?
+        # -> Znajdź ulice występującą najrzadziej (można uwzględnić priorytet) w trasach innych maszyn,
+        # zacznij od niego i twórz trasę do bazy, odwróć trasę i ewentualnie wygeneruj coś na koniec, aby wypełnić czas
+        # -> Generowanie trasy w oparciu o priorytet
+        # -> Dynamiczna definicja sąsiedztwa zależna od numeru iteracji
+        # -> Zmiana prawdopodobieństwa wykonania operatora sąsiedztwa z czasem
+        # -> Użycie wszystkich operatorów i wybranie najlepszego
         return new_solution
 
     def get_initial_path(self):
