@@ -1,42 +1,76 @@
-import random
 import math
 import copy
-import heapq
 import struktury_danych
 from typing import List, Union, Set
-
+from funkcje_sasiedztwa_SK import *
 
 class Machine:
     def __init__(self, speed=1):
         self.speed = speed
         self.route = []
 
-    def generate_initial_route(self, road_layout, Tmax, number_of_stages):
-        current_location = road_layout.baza
-        previous_location = None
+    def generate_initial_route(self, road_layout, Tmax, number_of_stages, consider_priority=False):
+        """
+        Generate an initial route for the machine considering time constraints and optionally road priorities.
+
+        Args:
+            road_layout: Graph representing the road network
+            Tmax: Maximum time allowed per stage
+            number_of_stages: Number of snowfall stages to plan for
+            consider_priority: Whether to consider road priorities in route selection
+        """
+        self.route = []
 
         for stage_no in range(number_of_stages):
+            current_location = road_layout.baza
+            previous_location = None
             time_cost = 0
             stage_route = []
 
-            # For each stage of snowfall calculate random route that is allowed by the time constraints
             while True:
                 neighbors = current_location.sasiedzi
-                next_location = random.choice(neighbors)  # Choose random neighbor as next location
-                street = road_layout.get_edge(current_location, next_location)
-
-                # Zapobiegamy łażenia w kółko
-                if next_location == previous_location and len(neighbors) > 1:
-                    continue
-
-                time_cost += street.oblicz_dlugosc() / self.speed
-
-                if time_cost >= Tmax:
+                if not neighbors:
                     break
 
-                stage_route.append(street)
+                # Filter out the previous location if we have other options
+                valid_neighbors = [n for n in neighbors if n != previous_location or len(neighbors) == 1]
+
+                if not valid_neighbors:
+                    break
+
+                if consider_priority:
+                    # Create list of (priority, neighbor, edge) tuples
+                    priority_options = []
+                    for neighbor in valid_neighbors:
+                        edge = road_layout.get_edge(current_location, neighbor)
+                        # Add small random factor to break ties
+                        adjusted_priority = edge.priorytet + random.random() * 0.1
+                        priority_options.append((adjusted_priority, neighbor, edge))
+
+                    # Sort by priority in descending order and select the highest priority option
+                    priority_options.sort(reverse=True)
+                    next_location = priority_options[0][1]
+                    selected_edge = priority_options[0][2]
+                else:
+                    next_location = random.choice(valid_neighbors)
+                    selected_edge = road_layout.get_edge(current_location, next_location)
+
+                # Calculate new time cost
+                new_time_cost = time_cost + selected_edge.oblicz_dlugosc() / self.speed
+
+                # Check if adding this edge would exceed time limit
+                if new_time_cost >= Tmax:
+                    break
+
+                # Add edge to route and update positions
+                stage_route.append(selected_edge)
+                time_cost = new_time_cost
                 previous_location = current_location
                 current_location = next_location
+
+                # Safety check - if we're stuck at the base with no valid moves, break
+                if current_location == road_layout.baza and len(stage_route) > 0:
+                    break
 
             self.route.append(stage_route)
 
@@ -68,7 +102,7 @@ class RoadClearingProblem:
         temperature = initial_temperature
 
         for iteration in range(max_iterations):
-            # Generowanie sąsiedniego rozwiązania
+            # # Generowanie sąsiedniego rozwiązania
             new_solution = None
 
             while new_solution is None:
@@ -101,9 +135,34 @@ class RoadClearingProblem:
         return best_solution, best_danger
 
     def generate_neighbor(self, current_solution):
+        x = random.randint(0, 100)
         new_solution = current_solution.copy()
         machine_to_modify = random.choice(new_solution)
-        self.change_path(machine_to_modify)  # Modyfikacja trasy jednej maszyny
+
+        if x < 60:
+            self.change_path(machine_to_modify)  # Modyfikacja trasy jednej maszyny
+
+        elif x < 75:
+            machine_to_modify.generate_initial_route(self.road_layout,
+                                                     self.Tmax,
+                                                     len(self.snowfall_forecast),
+                                                     consider_priority=False)
+
+        elif x < 85:
+            machine_to_modify.generate_initial_route(self.road_layout,
+                                                     self.Tmax,
+                                                     len(self.snowfall_forecast),
+                                                     consider_priority=False)
+
+        else:
+            new_path, stage_index = generate_route_from_least_frequent(self.road_layout,
+                                                                       machine_to_modify,
+                                                                       self.machines,
+                                                                       self.Tmax)
+            if new_path is not None:
+                if len(new_path) > 2:
+                    machine_to_modify.route[stage_index] = new_path
+
         # Inna definicja sąsiedztwa -> stwórz trasę od nowa?
         # -> Usuń trasę od wierzchołka i generuj trasę od tego punktu od nowa?
         # -> Znajdź ulice występującą najrzadziej (można uwzględnić priorytet) w trasach innych maszyn,
@@ -238,7 +297,7 @@ class RoadClearingProblem:
         :param machines: Lista maszyn z trasami do symulacji.
         :return: Całkowity poziom zagrożenia.
         """
-        # Skopiuj bieżący układ dróg, aby nie modyfikować stanu gry
+        # Skopiuj bieżący układ dróg, aby nie modyfikować stanu
         simulated_solution = copy.deepcopy(self.solution)
         total_danger = 0
 
@@ -250,8 +309,12 @@ class RoadClearingProblem:
             # Odśnieżanie zgodnie z trasami maszyn
             for machine in machines:
                 if stage < len(machine.route):  # Sprawdź, czy maszyna ma trasę dla bieżącego etapu
-                    for street in machine.route[stage]:
-                        street.snow_level = 0  # Usunięcie śniegu
+                    try:
+                        for street in machine.route[stage]:
+                            street.snow_level = 0  # Usunięcie śniegu
+
+                    except TypeError:
+                        print(machine.route)
 
             # Obliczenie zagrożenia po etapie
             stage_danger = sum(street.get_danger_level() for street in simulated_solution.krawedzie)
