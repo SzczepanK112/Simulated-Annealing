@@ -103,6 +103,16 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 return krawedz
 
         return None  # Jeśli nie znaleziono krawędzi
+    
+    def get_edges_from_vertex(self, wierzcholek):
+        """
+        Zwraca listę krawędzi wychodzących z danego wierzchołka.
+        """
+        edges = []
+        for krawedz in self.krawedzie:
+            if krawedz.start == wierzcholek:
+                edges.append(krawedz)
+        return edges
 
     def dodaj_krawedz(self, punkt1, punkt2, priorytet, pasy):
         # Dodaje krawędź do grafu między punktami (x1, y1) a (x2, y2), uwzględniając kierunek.
