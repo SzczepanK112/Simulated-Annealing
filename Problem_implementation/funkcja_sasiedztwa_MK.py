@@ -136,8 +136,7 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
 
     if zmiana_drogi:
         nowe_rozw = rozw_list[0:id1] + nowa_droga + rozw_list[id2+1:]
-        print(nowa_droga)
-        print(nowe_rozw)
+
         # teraz cala liste dzielimy na dana poczatkowa ilosc etapow, z odpowiednim czasem maksymalnym
         lista_rozw = [[] for lista in range(ilosc_etapow)]
         etap = 0
