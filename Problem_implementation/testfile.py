@@ -20,7 +20,7 @@ problem = RoadClearingProblem(snowfall_forecast, graf, machines, Tmax)
 best_solution, best_danger = problem.simulated_annealing(
     initial_temperature=500,
     cooling_rate=0.98,
-    max_iterations=30000
+    max_iterations=5000
 )
 
 print("Najlepsze rozwiązanie:", [machine.route for machine in best_solution])
