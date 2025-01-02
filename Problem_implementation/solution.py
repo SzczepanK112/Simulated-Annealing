@@ -4,6 +4,7 @@ import copy
 import heapq
 import struktury_danych
 from typing import List, Union, Set
+from funkcja_sasiedztwa_MK import *
 
 
 class Machine:
@@ -54,6 +55,8 @@ class RoadClearingProblem:
         self.machines = machines
         self.danger = float("inf")
         self.Tmax = Tmax
+        self.solution_history = [] # zawiera wszystkie kolejne przyjmowane rozwiazania (lista list)
+        self.danger_history = [ ] # zawiera wszystkie kolejne wartosci niebezpieczenstwa
 
         self.get_initial_path()
 
@@ -117,6 +120,13 @@ class RoadClearingProblem:
     def get_initial_path(self):
         for machine in self.machines:
             machine.generate_initial_route(self.road_layout, self.Tmax, len(self.snowfall_forecast))
+
+        # zapisanie wyniku do historii rozwiazan
+        rozw_1 = []
+        for machine in self.machines:
+            rozw_1.append(machine.route)
+
+        self.solution_history.append(rozw_1)
 
     def change_path(self, machine: Machine):
         """
@@ -258,4 +268,112 @@ class RoadClearingProblem:
             total_danger += stage_danger
 
         return total_danger
+
+
+
+    def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, max_iterations_in_step):
+        # Oblicz początkowe zagrożenie na podstawie obecnego - poczatkowego rozwiązania
+        current_danger = self.simulate_danger_2()
+        best_danger = current_danger
+
+        temperature = initial_temperature
+        actual_solution = copy.deepcopy(self.machines) # aktualne rozwiazanie
+        best_solution = self.machines
+        
+        for iteration in range(max_iterations):
+            print("\n")
+            print("-----ITERACJA ", iteration, "-------")
+
+            # Generowanie sąsiedniego rozwiązania
+            self.generate_neighbor_2()
+
+            # Symulacja nowego rozwiązania i obliczenie zagrożenia
+            new_danger = self.simulate_danger_2()
+
+            print("NEW DANGER -> ", new_danger)
+
+            # Oblicz różnicę zagrożenia
+            delta_danger = new_danger - current_danger
+            print("Roznica zagrozenia: ", delta_danger)
+
+            # Akceptacja rozwiązania na podstawie funkcji Boltzmanna
+            if delta_danger < 0 or random.random() < math.exp(-delta_danger / temperature):
+                actual_solution = copy.deepcopy(self.machines)
+                current_danger = new_danger
+                
+                # Aktualizacja najlepszego rozwiązania
+                if new_danger < best_danger:
+                    best_solution = copy.deepcopy(actual_solution)
+                    best_danger = new_danger
+            
+            else:
+                # w innym wypadku wracamy do rozwiazania aktualnego
+                self.machines = actual_solution 
+
+            # Schładzanie temperatury
+            temperature *= cooling_rate
+
+            # Warunek zakończenia
+            if temperature < 1e-3:
+                print("Zakończenien przez za niską temperature!")
+                break
+        
+        self.machines = best_solution
+        return best_solution, best_danger    
+
+    def simulate_danger_2(self):
+        """
+        Symuluje zagrożenie dla podanego rozwiązania, przechodząc przez wszystkie etapy opadów śniegu.
+        Najpierw przypisuje odpowiedni poziom sniegu ulicom w danym etapie i nastepnie wyznaczna odpowiedni poziom
+        niebezpieczenstwa i zwraca jego sume dla wszystkich etapów.
+        Cała symulacja działa na kopii rozkladu ulic, przez co nie narusza jego orygnalnej postaci.
+        :return: Całkowity poziom zagrożenia.
+        """
+        graf_start = copy.deepcopy(self.road_layout)  # Dzialanie na kopii w celu zachowania oryginalnej postaci
+        total_danger = 0
+
+        for etap in range(len(self.snowfall_forecast)):
+            # Lista odsnieżonych krawędzi przez wszystkie maszyny w danym etapie
+            ulice_clear = []
+            for m in self.machines:
+                for street in m.route[etap]:
+                    if street not in ulice_clear:
+                        ulice_clear.append(street)
+
+            for street in graf_start.krawedzie: 
+                if street in ulice_clear:  # Sprawdzamy, czy krawędź została odsnieżona
+                    street.snow_level = 0  # Ulica została odsnieżona
+                else:
+                    street.snow_level += self.snowfall_forecast[etap]  # Dodajemy śnieg na ulicach, które nie zostały odsnieżone
+
+            # obliczenie niebezpieczenstwa w danym etapie
+            stage_level = sum(street.get_danger_level() for street in graf_start.krawedzie)
+            total_danger += stage_level
+
+        return total_danger
+    
+    def generate_neighbor_2(self):
+        """
+        Generuje nowe rozwiazanie poprzez uzycie konkretnych funkcji sasiedztwa
+        """
+        actual_solution_list = [m.route for m in self.machines]
+
+        glebokosc_poszukiwan = 5
+        param2 = 2
+        choose_f = random.randint(0, 1)
+
+        if choose_f == 0:
+            rozw_1 = f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
+
+            # jesli nie udalo sie znalesc nowego rozwiazania uzyj innej funkcji sasiedztwa
+            if rozw_1 == actual_solution_list:
+                f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
+
+        elif choose_f == 1:
+            f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
+
+
+
+            
+            
 

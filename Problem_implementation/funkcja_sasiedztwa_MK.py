@@ -55,6 +55,8 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
     maszyna_id = random.randint(0, len(rozw_aktalne) - 1)
     maszyna = rozw_aktalne[maszyna_id]
     predkosc_maszyny = maszyna.speed
+    lista_maszyny_rozw = [m.route for m in rozw_aktalne]
+    lista_maszyny_rozw_poczatkowe = lista_maszyny_rozw
     rozw = maszyna.route
 
     # rozwiazanie w formie [[]], gdzie podlisty sa dla roznych etapow opadow (dla jednej maszyny)
@@ -157,11 +159,14 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
             else: 
                 lista_rozw[etap].append(krawedz)
 
-        return lista_rozw
+        maszyna.route = lista_rozw
+        lista_maszyny_rozw[maszyna_id] = lista_rozw
+
+        return lista_maszyny_rozw
 
     else:
         print("Brak zmiany!")
-        return rozw
+        return lista_maszyny_rozw_poczatkowe
     
 
 
@@ -182,6 +187,7 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
     maszyna_id = random.randint(0, len(rozw_aktalne) - 1)
     maszyna = rozw_aktalne[maszyna_id]
     predkosc_maszyny = maszyna.speed
+    lista_maszyny_rozw = [m.route for m in rozw_aktalne]
     rozw = maszyna.route
 
     # rozwiazanie w formie [[]], gdzie podlisty sa dla roznych etapow opadow (dla jednej maszyny)
@@ -239,5 +245,9 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
             odwiedzone_krawedzie.add(krawedz.start)
             odwiedzone_krawedzie.add(krawedz.koniec)
 
-    return nowe_rozw
+
+    maszyna.route = nowe_rozw
+    lista_maszyny_rozw[maszyna_id] = nowe_rozw
+
+    return lista_maszyny_rozw
 
