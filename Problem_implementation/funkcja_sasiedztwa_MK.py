@@ -147,7 +147,7 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
         for krawedz in nowe_rozw:
             czas_koszt += krawedz.oblicz_dlugosc() / predkosc_maszyny
 
-            if czas_koszt >= T_max:
+            if czas_koszt + krawedz.oblicz_dlugosc() / predkosc_maszyny >= T_max:
                 etap += 1
                 czas_koszt = 0
 
@@ -234,7 +234,7 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
             start_ = wybrana_krawedz.koniec  # Aktualizacja bieżącego wierzchołka
 
             # sprawdzamy, czy przekroczyliśmy maksymalny czas
-            if czas_koszt >= T_max:
+            if czas_koszt + wybrana_krawedz.oblicz_dlugosc() / predkosc_maszyny >= T_max:
                 break
 
         # dodanie nowej trasy do etapu
