@@ -1,19 +1,24 @@
 import heapq
 import random
+import copy
 
 
-def find_path_to_base(road_layout, start_node, excluded_edge=None):
+def find_path_to_edge(road_layout, target_edge, machine_speed):
     """
-    Find path to base using A* algorithm, optionally excluding one edge.
+    Find path from base to the start of target edge using A* algorithm.
+    Returns path and total time cost.
     """
-    open_set = [(0, start_node, [])]
+    open_set = [(0, road_layout.baza, [])]
     closed_set = set()
+
+    # Target nodes are both start and end of the target edge
 
     while open_set:
         f_score, current, path = heapq.heappop(open_set)
 
-        if current == road_layout.baza:
-            return path
+        if current == target_edge.start:
+            total_time = sum(edge.oblicz_dlugosc() for edge in path) / machine_speed
+            return path, total_time, current
 
         if current in closed_set:
             continue
@@ -25,18 +30,16 @@ def find_path_to_base(road_layout, start_node, excluded_edge=None):
                 continue
 
             edge = road_layout.get_edge(current, neighbor)
-            if edge == excluded_edge:
-                continue
 
             new_path = path + [edge]
-            # Use edge length and priority in heuristic
             g_score = sum(e.oblicz_dlugosc() for e in new_path)
-            h_score = neighbor.get_distance(road_layout.baza)
+            # Use minimum distance to either end of target edge as heuristic
+            h_score = neighbor.get_distance(target_edge.start)
             f_score = g_score + h_score
 
             heapq.heappush(open_set, (f_score, neighbor, new_path))
 
-    return None
+    return None, 0, None
 
 
 def fill_remaining_time(road_layout, start_node, remaining_time, machine_speed):
@@ -44,13 +47,18 @@ def fill_remaining_time(road_layout, start_node, remaining_time, machine_speed):
     Fill remaining time with additional edges using a greedy approach.
     """
     additional_route = []
+    last_node = None
     current_node = start_node
     time_used = 0
+    # print(remaining_time)
 
     while True:
         # Get valid neighbors (excluding those that would create a dead end)
         valid_neighbors = [n for n in current_node.sasiedzi
                            if len(n.sasiedzi) > 1 or n == road_layout.baza]
+
+        if last_node is not None:
+            valid_neighbors.remove(last_node)
 
         if not valid_neighbors:
             break
@@ -66,28 +74,28 @@ def fill_remaining_time(road_layout, start_node, remaining_time, machine_speed):
 
         additional_route.append(edge)
         time_used += time_cost
+
+        # We save last node in order to prohibit backtracking
+        last_node = current_node
         current_node = next_node
 
-        # Stop if we've returned to base
-        if current_node == road_layout.baza:
-            break
-
-    return additional_route
+    return additional_route, time_used
 
 
-def generate_route_from_least_frequent(road_layout, current_machine, all_machines, Tmax, consider_priority=True):
+def generate_route_from_least_frequent(machines, road_layout, Tmax, consider_priority=False):
     """
-    Generuje trasę, zaczynając od najmniej uczęszczanej ulicy, następnie tworzy ścieżkę do bazy, odwraca ją i
-    ewentualnie dokłada ulice na koniec trasy, aby wypełnić czas. Consider_priority jeszcze nie działa :(
+    Generuje trasęz bazy do najmniej uczęszczanej ulicy i
+    ewentualnie dokłada ulice na koniec trasy, aby wypełnić czas.
     """
 
-    stage_index = random.randint(1, len(current_machine.route)) - 1
+    current_machine = random.choice(machines)
+    num_of_stages = len(current_machine.route)
 
     def calculate_street_frequency(edge):
         frequency = 0
-        for machine in all_machines:
+        for machine in machines:
             if machine != current_machine:  # Don't count current machine
-                if stage_index < len(machine.route):
+                for stage_index in range(num_of_stages):
                     frequency += sum(1 for route_edge in machine.route[stage_index]
                                      if route_edge == edge)
 
@@ -95,7 +103,7 @@ def generate_route_from_least_frequent(road_layout, current_machine, all_machine
         if consider_priority:
             # Normalize frequency to 0-1 range and combine with priority
             # Lower frequency and higher priority will give lower score
-            freq_score = frequency / (len(all_machines) - 1) if len(all_machines) > 1 else 1
+            freq_score = frequency / (len(machines) - 1) if len(machines) > 1 else 1
             priority_score = 1 - (edge.priorytet / max(e.priorytet for e in road_layout.krawedzie))
             return (freq_score + priority_score) / 2
         return frequency
@@ -104,39 +112,216 @@ def generate_route_from_least_frequent(road_layout, current_machine, all_machine
     edge_scores = [(calculate_street_frequency(edge), edge) for edge in road_layout.krawedzie]
     edge_scores.sort(key=lambda x: x[0])  # Sort by frequency/score
 
-    # Try edges starting from least frequent until we find one that works
-    for _, start_edge in edge_scores:
-        # Try both directions of the edge
-        for start_node, end_node in [(start_edge.start, start_edge.koniec),
-                                     (start_edge.koniec, start_edge.start)]:
-            # Find path to base using A*
-            path_to_base = find_path_to_base(road_layout, start_node, start_edge)
+    # Try edges starting from least frequent
+    for _, target_edge in edge_scores:
+        # Find path from base to target edge
+        path_to_edge, time_to_edge, reached_node = find_path_to_edge(
+            road_layout,
+            target_edge,
+            current_machine.speed
+        )
 
-            if path_to_base:
-                # Calculate time cost of path including initial edge
-                time_cost = (start_edge.oblicz_dlugosc() +
-                             sum(edge.oblicz_dlugosc() for edge in path_to_base)) / current_machine.speed
+        # print(current_machine.route)
+        if path_to_edge is not None:
+            # Add the target edge to the path
+            route = path_to_edge + [target_edge]
 
-                if time_cost <= Tmax:
-                    # Create initial route with start_edge and path to base
-                    route = [start_edge] + path_to_base
+            # Calculate time cost of path for all stages including initial edge
+            time_cost = (sum(edge.oblicz_dlugosc() for edge in route) / current_machine.speed)
 
-                    # Reverse the route
-                    route = route[::-1]
+            if time_cost <= Tmax * num_of_stages:
+                # Try to fill remaining time
+                remaining_time = Tmax * num_of_stages - time_cost
+                if remaining_time > 0:
+                    additional_edges, additional_time = fill_remaining_time(
+                        road_layout,
+                        route[-1].koniec,
+                        remaining_time,
+                        current_machine.speed
+                    )
 
-                    # Try to fill remaining time
-                    remaining_time = Tmax - time_cost
-                    if remaining_time > 0:
-                        additional_edges = fill_remaining_time(
-                            road_layout,
-                            route[-1].koniec,  # Start from last position
-                            remaining_time,
-                            current_machine.speed
-                        )
-                        route.extend(additional_edges)
+                    route.extend(additional_edges)
 
-                    return route, stage_index
+                route = [route] + [[] for _ in range(num_of_stages - 1)]
+                route = adjust_route_to_tmax(route, current_machine, Tmax)
+                current_machine.route = route
+                return route
 
     # If no valid route found, return empty route
     return []
 
+
+def adjust_route_to_tmax(new_route, machine, Tmax):
+    """
+    Dostosowuje trasę do maksymalnego czasu Tmax, przesuwając nadmiarowe krawędzie
+    do następnego segmentu lub usuwając je, jeśli to ostatni segment.
+    """
+
+    for segment_idx in range(len(new_route)):
+        while True:
+            time = 0
+            edges_to_move = []
+
+            # Oblicz całkowity czas dla bieżącego segmentu
+            for edge_idx, edge in enumerate(new_route[segment_idx]):
+                time += edge.dlugosc / machine.speed
+
+                # Jeśli czas przekracza Tmax, przygotuj się do przesunięcia krawędzi
+                if time > Tmax:
+                    edges_to_move.append((edge_idx, edge))
+
+            # Jeśli nie ma krawędzi do przesunięcia, zakończ pętlę
+            if not edges_to_move:
+                break
+
+            # Przesuń nadmiarowe krawędzie do kolejnego segmentu
+            if segment_idx < len(new_route) - 1:
+                for edge_idx, edge in reversed(edges_to_move):
+                    # Krawędź pod danym indeksem ustawiamy na None, aby uniknąć usunięcia z segmentu trasy
+                    # wszystkich wystąpień danej krawędzi
+                    new_route[segment_idx][edge_idx] = None
+                    new_route[segment_idx + 1].insert(0, edge)
+
+            else:
+                # Jeśli to ostatni segment, usuń nadmiarowe krawędzie
+                for edge_idx, edge in edges_to_move:
+                    new_route[segment_idx][edge_idx] = None
+
+            # Usuwanie z segmentu wszystkich None'ów
+            new_route[segment_idx] = [edge for edge in new_route[segment_idx] if edge is not None]
+
+    return new_route
+
+
+def change_path(machines, road_layout, Tmax):
+    """
+        Modyfikuje trasę maszyny, usuwając jedną krawędź i zastępując ją nową trasą naprawioną algorytmem A*.
+        Przenosi krawędzie do następnego etapu, jeśli Tmax zostanie przekroczone.
+
+        Args:
+            machines (List[Machine]): Lista maszyn.
+            road_layout (Graph): Graf reprezentujący układ drogowy.
+            Tmax (float): Maksymalny czas na segment trasy.
+
+        Returns:
+            list: Zaktualizowane trasy dla maszyn.
+        """
+
+    def repair_path_A_star(removed_edge, graph):
+        open_set = []
+        heapq.heappush(open_set, (0, removed_edge.start))  # Kolejka priorytetowa
+        closed_set = set()  # Zbiór odwiedzonych węzłów
+        came_from = {}  # Przechowuje ścieżkę (z wierzchołka na wierzchołek)
+        g_score = {node: float('inf') for node in graph.wierzcholki}  # Koszt dotarcia
+        g_score[removed_edge.start] = 0
+
+        while open_set:
+            _, current = heapq.heappop(open_set)
+
+            # Jeśli dotarliśmy do celu, rekonstruujemy ścieżkę
+            if current == removed_edge.koniec:
+                path = []
+                while current in came_from:
+                    prev_node = came_from[current]
+                    edge = graph.get_edge(prev_node, current)
+                    path.append(edge)
+                    current = prev_node
+                return path[::-1]  # Odwróć kolejność, by zaczynać od startu
+
+            # Dodaj węzeł do zbioru odwiedzonych
+            closed_set.add(current)
+
+            # Iterujemy po sąsiadach wierzchołka
+            for neighbor in current.sasiedzi:
+                edge = graph.get_edge(current, neighbor)
+
+                # Ignorujemy krawędź usuniętą
+                if edge == removed_edge:
+                    continue
+
+                # Ignorujemy węzły już odwiedzone
+                if neighbor in closed_set:
+                    continue
+
+                # Oblicz koszt przejścia
+                tentative_g_score = g_score[current] + current.get_distance(neighbor)
+
+                if tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current  # Zaktualizuj ścieżkę
+                    g_score[neighbor] = tentative_g_score
+                    f_score = tentative_g_score + neighbor.get_distance(
+                        removed_edge.koniec)  # Heurystyka (odległość do celu)
+                    heapq.heappush(open_set, (f_score, neighbor))
+
+        return None  # Jeśli nie znaleziono ścieżki
+
+    machine = random.choice(machines)
+    machine_copy = copy.deepcopy(machine)
+    new_route = machine_copy.route
+
+    segment_idx = random.choice(range(len(new_route)))
+    edge_for_deletion_idx = random.choice(range(len(new_route[segment_idx])))
+    edge_for_deletion = new_route[segment_idx][edge_for_deletion_idx]
+
+    repaired_path = repair_path_A_star(edge_for_deletion, road_layout)
+
+    if repaired_path is not None:
+        # Replace the deleted edge with the repaired path
+        new_route[segment_idx][edge_for_deletion_idx:edge_for_deletion_idx + 1] = repaired_path
+        new_route = adjust_route_to_tmax(new_route, machine, Tmax)
+
+    machine.route = new_route
+
+    return [machine.route for machine in machines]
+
+
+# ---------- JESZCZE NIE DZIAŁA -------------- #
+def squish_routes(machines, road_layout, Tmax):
+    """
+    Stara się zoptymalizować trasy poprzez ściśnięcie tras dla każdej maszyny. Najpierw, jeżeli to możliwe przesuwa
+    krawędzie do poprzedniego etapu, aby na koniec uzupełnić ostatni etap najkrótszą krawędzią sąsiadującą, która nie
+    jest odśnieżona.
+
+    :param machines:
+    :param road_layout:
+    :param Tmax:
+    :return:
+    """
+
+    for machine in machines:
+        route = machine.route
+        for stage_idx in range(1, len(machine.route) - 1):
+            stage_time = 0
+            for edge in route[stage_idx]:
+                stage_time += edge.dlugosc / machine.speed
+
+            next_stage_first_edge = route[stage_idx + 1][0]
+
+            if stage_time + next_stage_first_edge.dlugosc / machine.speed < Tmax:
+                route[stage_idx].append(route[stage_idx + 1].pop(0))
+                print('lista ściśnięta')
+
+        # Próbujemy dodać dodatkowe krawędzie do ostatniego etapu
+        last_stage_time = 0
+        last_node = [edge for stage in route for edge in stage][-1].koniec
+        for edge in route[-1]:
+            last_stage_time += edge.dlugosc / machine.speed
+
+        possible_edges = []
+        for neighbor in last_node.sasiedzi:
+            possible_edges.append(road_layout.get_edge(last_node, neighbor))
+
+        possible_edges.sort(key=lambda x: x.dlugosc)
+        possible_edges = [edge for edge in possible_edges if edge.snow_level != 0]
+
+        while possible_edges:
+            shortest_edge = possible_edges.pop(0)
+            last_stage_time += shortest_edge.dlugosc / machine.speed
+
+            if last_stage_time > Tmax:
+                break
+
+            machine.route[-1].append(shortest_edge)
+            print('dodano element')
+
+    return [machine.route for machine in machines]

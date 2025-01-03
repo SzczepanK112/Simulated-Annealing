@@ -2,6 +2,7 @@ import math
 import copy
 import struktury_danych
 from typing import List, Union, Set
+from funkcje_sasiedztwa_SK import *
 from funkcja_sasiedztwa_MK import *
 
 
@@ -22,9 +23,10 @@ class Machine:
         """
         self.route = []
 
+        current_location = road_layout.baza
+        previous_location = None
+
         for stage_no in range(number_of_stages):
-            current_location = road_layout.baza
-            previous_location = None
             time_cost = 0
             stage_route = []
 
@@ -85,48 +87,48 @@ class RoadClearingProblem:
 
         self.snowfall_forecast = snowfall_forecast
         self.road_layout = road_layout
-        self.solution = road_layout
         self.machines = machines
         self.danger = float("inf")
         self.Tmax = Tmax
-        self.solution_history = [] # zawiera wszystkie kolejne przyjmowane rozwiazania (lista list)
-        self.danger_history = [ ] # zawiera wszystkie kolejne wartosci niebezpieczenstwa
 
         self.get_initial_path()
 
+        rozw = [machine.route for machine in self.machines]
+
+        for route in rozw:
+            print(route, '\n')
+
     def simulated_annealing(self, initial_temperature: float, cooling_rate: float, max_iterations: int):
 
-        current_solution = copy.deepcopy(self.machines)  # Kopia aktualnych maszyn i ich tras
+        current_solution = self.machines
         best_solution = copy.deepcopy(current_solution)
 
         # Oblicz początkowe zagrożenie na podstawie obecnego rozwiązania
-        current_danger = self.simulate_danger(current_solution)
-        best_danger = current_danger
         temperature = initial_temperature
 
         for iteration in range(max_iterations):
-            # # Generowanie sąsiedniego rozwiązania
+            # Generowanie sąsiedniego rozwiązania
             new_solution = None
 
             while new_solution is None:
                 new_solution = self.generate_neighbor(current_solution)
 
             # Symulacja nowego rozwiązania i obliczenie zagrożenia
-            new_danger = self.simulate_danger(new_solution)
+            new_danger = self.simulate_danger()
 
             # Oblicz różnicę zagrożenia
-            delta_danger = new_danger - current_danger
+            delta_danger = new_danger - self.danger
             print(delta_danger)
 
             # Akceptacja rozwiązania na podstawie funkcji Boltzmanna
             if delta_danger < 0 or random.random() < math.exp(-delta_danger / temperature):
-                current_solution = new_solution
-                current_danger = new_danger
+                if new_danger < self.danger:
+                    self.danger = new_danger
 
-                # Aktualizacja najlepszego rozwiązania
-                if new_danger < best_danger:
-                    best_solution = copy.deepcopy(new_solution)
-                    best_danger = new_danger
+            # Gdy rozwiązanie nie jest lepsze cofamy zmiany wykonane przez generate_neighbor()
+            else:
+                self.undo_route_changes(best_solution)
+                print('undoed')
 
             # Schładzanie temperatury
             temperature *= cooling_rate
@@ -135,36 +137,35 @@ class RoadClearingProblem:
             if temperature < 1e-3:
                 break
 
-        return best_solution, best_danger
+        return self.machines, self.danger
+
+    def undo_route_changes(self, previous_machines_config: List[Machine]):
+        for machine_idx in range(len(self.machines)):
+            # Przypisujemy wszystkim maszynom wcześniejszą trasę, która została podana jako parametr
+            self.machines[machine_idx].route = previous_machines_config[machine_idx].route
 
     def generate_neighbor(self, current_solution):
         x = random.randint(0, 100)
-        new_solution = current_solution.copy()
-        machine_to_modify = random.choice(new_solution)
+        new_path = current_solution.copy()
+        machine_to_modify = random.choice(current_solution)
 
-        if x < 60:
-            self.change_path(machine_to_modify)  # Modyfikacja trasy jednej maszyny
+        # wejście na definicji sąsiedztwa -> lista maszyn
+        # definicja sąsiedztwa -> tylko nadpisuje trasę dla maszyny, zwraca rozwiązanie (lista krawedzi)
 
-        elif x < 75:
-            machine_to_modify.generate_initial_route(self.road_layout,
-                                                     self.Tmax,
-                                                     len(self.snowfall_forecast),
-                                                     consider_priority=False)
+        if x < 160:
+            new_path = change_path(self.machines, self.road_layout, self.Tmax)  # Modyfikacja trasy jednej maszyny
 
-        elif x < 85:
-            machine_to_modify.generate_initial_route(self.road_layout,
-                                                     self.Tmax,
-                                                     len(self.snowfall_forecast),
-                                                     consider_priority=False)
+        elif x > 80:
+            new_path = machine_to_modify.generate_initial_route(self.road_layout,
+                                                                self.Tmax,
+                                                                len(self.snowfall_forecast),
+                                                                consider_priority=False)
 
-        else:
-            #new_path, stage_index = generate_route_from_least_frequent(self.road_layout,
-            #                                                          machine_to_modify,
-            #                                                           self.machines,
-            #                                                           self.Tmax)
-            #if new_path is not None:
-            #    if len(new_path) > 2:
-            #        machine_to_modify.route[stage_index] = new_path
+        # else:
+            # new_path = generate_route_from_least_frequent(self.road_layout,
+            #                                               machine_to_modify,
+            #                                               self.machines,
+            #                                               self.Tmax)
 
         # Inna definicja sąsiedztwa -> stwórz trasę od nowa?
         # -> Usuń trasę od wierzchołka i generuj trasę od tego punktu od nowa?
@@ -174,89 +175,55 @@ class RoadClearingProblem:
         # -> Dynamiczna definicja sąsiedztwa zależna od numeru iteracji
         # -> Zmiana prawdopodobieństwa wykonania operatora sąsiedztwa z czasem
         # -> Użycie wszystkich operatorów i wybranie najlepszego
-            return new_solution
+        # !!! -> Funkcja dodająca krawędzie bo jest jeszcze miejsce? !!!
+        return new_path
 
     def get_initial_path(self):
         for machine in self.machines:
             machine.generate_initial_route(self.road_layout, self.Tmax, len(self.snowfall_forecast))
 
-        # zapisanie wyniku do historii rozwiazan
-        rozw_1 = []
-        for machine in self.machines:
-            rozw_1.append(machine.route)
-
-        self.solution_history.append(rozw_1)
-
-    def change_path(self, machine: Machine):
+    def simulate_danger(self) -> float:
         """
-        Modyfikuje trasę maszyny, usuwając jedną krawędź i zastępując ją nową trasą naprawioną algorytmem A*.
-        Przenosi krawędzie do następnego etapu, jeśli Tmax zostanie przekroczone.
+        Symuluje zagrożenie dla podanego rozwiązania, przechodząc przez wszystkie etapy opadów śniegu.
+        :return: Całkowity poziom zagrożenia.
         """
+        # Skopiuj bieżący układ dróg, aby nie modyfikować stanu
+        simulated_road_layout = copy.deepcopy(self.road_layout)
+        total_danger = 0
 
-        machine_copy = copy.deepcopy(machine)
-        new_route = machine_copy.route
+        for stage in range(len(self.snowfall_forecast)):
+            # Aktualizacja poziomu śniegu
+            for street in simulated_road_layout.krawedzie:
+                street.snow_level += self.snowfall_forecast[stage]
 
-        segment_idx = random.choice(range(len(new_route)))
-        edge_for_deletion_idx = random.choice(range(len(new_route[segment_idx])))
-        edge_for_deletion = new_route[segment_idx][edge_for_deletion_idx]
+            # Odśnieżanie zgodnie z trasami maszyn
+            for machine in self.machines:
+                try:
+                    for street in machine.route[stage]:
+                        street.snow_level = 0  # Usunięcie śniegu
 
-        self.road_layout.krawedzie.remove(edge_for_deletion)
-        edge_for_deletion.start.sasiedzi.remove(edge_for_deletion.koniec)
-        edge_for_deletion.koniec.sasiedzi.remove(edge_for_deletion.start)
+                except TypeError:
+                    print('blad')
+                    print(machine.route)
 
-        repaired_path = self.repair_path_A_star(edge_for_deletion, self.road_layout)
+            # Obliczenie zagrożenia po etapie
+            stage_danger = sum(street.get_danger_level() for street in simulated_road_layout.krawedzie)
+            total_danger += stage_danger
 
-        if repaired_path is not None:
-            # Replace the deleted edge with the repaired path
-            new_route[segment_idx][edge_for_deletion_idx:edge_for_deletion_idx + 1] = repaired_path
+        return total_danger
 
-            # Check and adjust route to respect Tmax
-            while True:
-                time = 0
-                edges_to_move = []
-
-                # Calculate total time for the current segment
-                for edge in new_route[segment_idx]:
-                    time += edge.dlugosc / machine.speed
-
-                    # If time exceeds Tmax, prepare to move edges to the next segment
-                    if time > self.Tmax:
-                        # Start removing edges from the end of the segment
-                        edges_to_move.append(edge)
-
-                # If no edges need to be moved, break the loop
-                if not edges_to_move:
-                    break
-
-                # Move excess edges to the next segment
-                if segment_idx < len(new_route) - 1:
-                    for edge in reversed(edges_to_move):
-                        new_route[segment_idx].remove(edge)
-                        new_route[segment_idx + 1].insert(0, edge)
-                else:
-                    # If it's the last segment, just remove the excess edges
-                    for edge in edges_to_move:
-                        new_route[segment_idx].remove(edge)
-
-        # Restore the original edge and neighborhood relationships
-        self.road_layout.krawedzie.append(edge_for_deletion)
-        edge_for_deletion.start.dodaj_sasiada(edge_for_deletion.koniec)
-        edge_for_deletion.koniec.dodaj_sasiada(edge_for_deletion.start)
-
-        return
-
-    #-----------------------------------------------------------------------------------------------------------#
-    #-------------------------------------------WERSJA V2-------------------------------------------------------#
-    #-----------------------------------------------------------------------------------------------------------#
+    # -----------------------------------------------------------------------------------------------------------#
+    # -------------------------------------------WERSJA V2-------------------------------------------------------#
+    # -----------------------------------------------------------------------------------------------------------#
     def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, max_iterations_in_step):
         # Oblicz początkowe zagrożenie na podstawie obecnego - poczatkowego rozwiązania
         current_danger = self.simulate_danger_2()
         best_danger = current_danger
 
         temperature = initial_temperature
-        actual_solution = copy.deepcopy(self.machines) # aktualne rozwiazanie
+        actual_solution = copy.deepcopy(self.machines)  # aktualne rozwiazanie
         best_solution = self.machines
-        
+
         for iteration in range(max_iterations):
             print("\n")
             print("-----ITERACJA ", iteration, "-------")
@@ -277,26 +244,26 @@ class RoadClearingProblem:
             if delta_danger < 0 or random.random() < math.exp(-delta_danger / temperature):
                 actual_solution = copy.deepcopy(self.machines)
                 current_danger = new_danger
-                
+
                 # Aktualizacja najlepszego rozwiązania
                 if new_danger < best_danger:
                     best_solution = copy.deepcopy(actual_solution)
                     best_danger = new_danger
-            
+
             else:
                 # w innym wypadku wracamy do rozwiazania aktualnego
-                self.machines = actual_solution 
+                self.machines = actual_solution
 
-            # Schładzanie temperatury
+                # Schładzanie temperatury
             temperature *= cooling_rate
 
             # Warunek zakończenia
             if temperature < 1e-3:
-                print("Zakończenien przez za niską temperature!")
+                print("Zakończenie przez za niską temperature!")
                 break
-        
+
         self.machines = best_solution
-        return best_solution, best_danger    
+        return best_solution, best_danger
 
     def simulate_danger_2(self):
         """
@@ -317,18 +284,19 @@ class RoadClearingProblem:
                     if street not in ulice_clear:
                         ulice_clear.append(street)
 
-            for street in graf_start.krawedzie: 
+            for street in graf_start.krawedzie:
                 if street in ulice_clear:  # Sprawdzamy, czy krawędź została odsnieżona
                     street.snow_level = 0  # Ulica została odsnieżona
                 else:
-                    street.snow_level += self.snowfall_forecast[etap]  # Dodajemy śnieg na ulicach, które nie zostały odsnieżone
+                    street.snow_level += self.snowfall_forecast[
+                        etap]  # Dodajemy śnieg na ulicach, które nie zostały odsnieżone
 
             # obliczenie niebezpieczenstwa w danym etapie
             stage_level = sum(street.get_danger_level() for street in graf_start.krawedzie)
             total_danger += stage_level
 
         return total_danger
-    
+
     def generate_neighbor_2(self):
         """
         Generuje nowe rozwiazanie poprzez uzycie konkretnych funkcji sasiedztwa
@@ -337,7 +305,8 @@ class RoadClearingProblem:
 
         glebokosc_poszukiwan = 5
         param2 = 2
-        choose_f = random.randint(0, 1)
+        choose_f = random.randint(1, 3)
+        # choose_f = 3
 
         if choose_f == 0:
             rozw_1 = f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
@@ -348,11 +317,20 @@ class RoadClearingProblem:
 
         elif choose_f == 1:
             f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
-    #-----------------------------------------------------------------------------------------------------------#
-    #-----------------------------------------------------------------------------------------------------------#
-    #-----------------------------------------------------------------------------------------------------------#
 
-    
+        elif choose_f == 2:
+            generate_route_from_least_frequent(self.machines, self.road_layout, self.Tmax)
+
+        elif choose_f == 3:
+            change_path(self.machines, self.road_layout, self.Tmax)
+
+        elif choose_f == 4:
+            squish_routes(self.machines, self.road_layout, self.Tmax)
+    # -----------------------------------------------------------------------------------------------------------#
+    # -----------------------------------------------------------------------------------------------------------#
+    # -----------------------------------------------------------------------------------------------------------#
+
+
 '''
     @staticmethod
     def repair_path_A_star(removed_edge, graph):

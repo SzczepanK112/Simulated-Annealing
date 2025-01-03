@@ -13,16 +13,33 @@ m3 = Machine(speed=2)
 
 machines = [m1, m2, m3]
 
-Tmax = 30
+Tmax = 15
 
 problem = RoadClearingProblem(snowfall_forecast, graf, machines, Tmax)
 
-best_solution, best_danger = problem.simulated_annealing(
-    initial_temperature=500,
+best_solution, best_danger = problem.simulated_annealing_2(
+    initial_temperature=1000,
     cooling_rate=0.98,
-    max_iterations=5000
+    max_iterations=1000,
+    max_iterations_in_step=0
 )
 
-print("Najlepsze rozwiązanie:", [machine.route for machine in best_solution])
-print("Poziom zagrożenia:", best_danger)
+# print("Najlepsze rozwiązanie:", [machine.route for machine in best_solution])
+rozw = [machine.route for machine in best_solution]
 
+for j, route in enumerate(rozw):
+    route_l = 0
+    print(f'------- MASZYNA {j} -------')
+    for i, stage in enumerate(route):
+        stage_l = 0
+        for edge in stage:
+            length = edge.oblicz_dlugosc()
+            stage_l += length
+            route_l += length
+
+        print(f'Etap: {i + 1} -> długość: {stage_l}')
+    print(f'\nTrasa: {route} \n')
+    print(f'Długość całości: {route_l}\n')
+
+print(Tmax * len(snowfall_forecast))
+print("Poziom zagrożenia:", best_danger)
