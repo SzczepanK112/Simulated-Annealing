@@ -227,6 +227,12 @@ class RoadClearingProblem:
         for iteration in range(max_iterations):
             print("\n")
             print("-----ITERACJA ", iteration, "-------")
+            o = 1
+            for m in self.machines:
+                for etap in m.route:
+                    if len(etap) == 0:
+                        print("Pusty etap!!!! ", o)
+                o += 1
 
             # Generowanie sąsiedniego rozwiązania
             self.generate_neighbor_2()
@@ -305,8 +311,8 @@ class RoadClearingProblem:
 
         glebokosc_poszukiwan = 5
         param2 = 2
-        choose_f = random.randint(1, 3)
-        # choose_f = 3
+        choose_f = random.randint(0, 4)
+        #choose_f = 0
 
         if choose_f == 0:
             rozw_1 = f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)

@@ -145,9 +145,9 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
         czas_koszt = 0
 
         for krawedz in nowe_rozw:
-            czas_koszt += krawedz.oblicz_dlugosc() / predkosc_maszyny
+            kr_koszt = krawedz.oblicz_dlugosc() / predkosc_maszyny
 
-            if czas_koszt + krawedz.oblicz_dlugosc() / predkosc_maszyny >= T_max:
+            if czas_koszt + kr_koszt > T_max:
                 etap += 1
                 czas_koszt = 0
 
@@ -155,10 +155,21 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
                     break
                 else:
                     lista_rozw[etap].append(krawedz)
-
-            else: 
+                    czas_koszt += kr_koszt
+            
+            else:
                 lista_rozw[etap].append(krawedz)
+                czas_koszt += kr_koszt
+        
+        if etap < len(lista_rozw):
+            dopelnienie__etapu(lista_rozw, etap, graf, T_max, predkosc_maszyny, param2=0)
+        etap += 1
 
+        while etap < ilosc_etapow:
+            if etap < len(lista_rozw):
+                dopelnienie__etapu(lista_rozw, etap, graf, T_max, predkosc_maszyny, param2=0)
+            etap += 1
+        
         maszyna.route = lista_rozw
         lista_maszyny_rozw[maszyna_id] = lista_rozw
 
@@ -192,11 +203,16 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
 
     # rozwiazanie w formie [[]], gdzie podlisty sa dla roznych etapow opadow (dla jednej maszyny)
     ilosc_etapow = len(rozw) # zapamietania liczby etapow
+    if ilosc_etapow <= 1:
+        return rozw
     etap = random.randint(1, ilosc_etapow - 1) # wybranie losowego etapu (oprocz poczatkowego)
 
-    if ilosc_etapow == 0:
-        print("Brak zmiany! Tylko jeden etap!")
+    etapy_do_modyfikacji = [idx for idx in range(1, ilosc_etapow) if len(rozw[idx]) > 0]
+    if not etapy_do_modyfikacji:
+        print("Brak jakiegokolwiek niepustego etapu (oprócz pierwszego) - brak zmiany!")
         return rozw
+
+    etap = random.choice(etapy_do_modyfikacji)
 
     nowe_rozw = rozw[:etap]  # zachowujemy etapy do wybranego w niezmienionej formie
     start_ = rozw[etap][0].start
@@ -226,16 +242,29 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
                 elif krawedz.koniec not in [k.start for k in nowa_trasa[-param2:]]:
                     wybrana_krawedz = krawedz
                     break
-                    
 
-            # dodajemy wybraną krawędź do trasy i aktualizujemy czas
-            nowa_trasa.append(wybrana_krawedz)
-            czas_koszt += wybrana_krawedz.oblicz_dlugosc() / predkosc_maszyny
-            start_ = wybrana_krawedz.koniec  # Aktualizacja bieżącego wierzchołka
-
+            if wybrana_krawedz is None:
+                if len(sasiadujace_krawedzie) > 0:
+                    wybrana_krawedz = sasiadujace_krawedzie[0]  
+                    #złagodzenie: bierzemy cokolwiek, nawet jeśli prowadzi do odwiedzonego wierzchołka.
+                else:
+                    break
+            
             # sprawdzamy, czy przekroczyliśmy maksymalny czas
             if czas_koszt + wybrana_krawedz.oblicz_dlugosc() / predkosc_maszyny >= T_max:
                 break
+
+            else:
+                # dodajemy wybraną krawędź do trasy i aktualizujemy czas
+                nowa_trasa.append(wybrana_krawedz)
+                czas_koszt += wybrana_krawedz.oblicz_dlugosc() / predkosc_maszyny
+                start_ = wybrana_krawedz.koniec  # Aktualizacja bieżącego wierzchołka
+
+        if len(nowa_trasa) == 0:
+            # Jeżeli w całej pętli while czas_koszt < T_max nie dodaliśmy NIC,
+            # to wycofaj modyfikacje albo spróbuj innej metody
+            print("Etap okazał się pusty nawet z fallbackiem - rezygnujemy z modyfikacji.")
+            return rozw
 
         # dodanie nowej trasy do etapu
         nowe_rozw.append(nowa_trasa)
@@ -244,10 +273,82 @@ def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
         for krawedz in rozw[etap_id]:
             odwiedzone_krawedzie.add(krawedz.start)
             odwiedzone_krawedzie.add(krawedz.koniec)
+    
+    if len(nowe_rozw) > 0:  # czy mamy w ogóle etapy
+        if etap < len(nowe_rozw):
+            dopelnienie__etapu(nowe_rozw, etap_id, graf, T_max, predkosc_maszyny, param2=0)
+        etap_id += 1
 
-
+        while etap_id < ilosc_etapow:
+            if etap < len(nowe_rozw):
+                dopelnienie__etapu(nowe_rozw, etap_id, graf, T_max, predkosc_maszyny, param2=0)
+            etap_id += 1
+    
     maszyna.route = nowe_rozw
     lista_maszyny_rozw[maszyna_id] = nowe_rozw
 
     return lista_maszyny_rozw
 
+def dopelnienie__etapu(lista_rozw, stage_index, graf, T_max, predkosc, param2=2):
+    """
+    Próbuje 'dopełnić' ostatni etap (lista_rozw[stage_index]), 
+    jeśli jest jeszcze czas < T_max.
+    Zwraca: nic - modyfikuje bezpośrednio lista_rozw[stage_index].
+    """
+
+    # Jeśli nie ma żadnych krawędzi w tym etapie, 
+    # to musimy ustalić wierzchołek startu:
+    if len(lista_rozw[stage_index]) == 0:
+        # Wariant A: bierzemy koniec poprzedniego etapu
+        if stage_index == 0:
+            # Nie mamy poprzedniego etapu, więc brak pomysłu skąd zacząć.
+            return
+        else:
+            # Weź ostatnią krawędź z poprzedniego etapu
+            prev_stage = lista_rozw[stage_index - 1]
+            if len(prev_stage) == 0:
+                return  # i tak nie mamy skąd startować
+            start_vertex = prev_stage[-1].koniec
+    else:
+        # Jeśli są krawędzie, to startujemy z końca ostatniej
+        start_vertex = lista_rozw[stage_index][-1].koniec
+
+    # Policz aktualny czas w etapie
+    current_time = 0
+    for kraw in lista_rozw[stage_index]:
+        current_time += kraw.oblicz_dlugosc() / predkosc
+
+    # Dopóki mamy czas, próbujmy dodawać krawędzie
+    while True:
+        if current_time >= T_max:
+            break  # i tak już brak czasu
+
+        # Znajdź kandydatów (sąsiadów) z grafu
+        sasiedzi = graf.get_edges_from_vertex(start_vertex)
+        if not sasiedzi:
+            break  # brak dalszych krawędzi
+
+        # Można posortować po priorytecie, lub brać losowo:
+        random.shuffle(sasiedzi)
+
+        # Próbujemy wybrać krawędź, która jeszcze mieści się w T_max 
+        chosen_edge = None
+        for edge in sasiedzi:
+            if param2 > 0 and len(lista_rozw[stage_index]) > 0:
+                recent_vertices = [k.koniec for k in lista_rozw[stage_index][-param2:]]
+                if edge.koniec in recent_vertices:
+                    continue
+
+            cost = edge.oblicz_dlugosc() / predkosc
+            if current_time + cost <= T_max:
+                chosen_edge = edge
+                break
+
+        if chosen_edge is None:
+            # nie znaleźliśmy nic pasującego
+            break
+
+        # Dodajemy krawędź
+        lista_rozw[stage_index].append(chosen_edge)
+        current_time += chosen_edge.oblicz_dlugosc() / predkosc
+        start_vertex = chosen_edge.koniec
