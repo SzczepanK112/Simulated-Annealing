@@ -4,7 +4,7 @@ import struktury_danych
 from typing import List, Union, Set
 from funkcje_sasiedztwa_SK import *
 from funkcja_sasiedztwa_MK import *
-
+from  funkcja_sasiedztwa_PG import *
 
 class Machine:
     def __init__(self, speed=1):
@@ -331,7 +331,13 @@ class RoadClearingProblem:
             change_path(self.machines, self.road_layout, self.Tmax)
 
         elif choose_f == 4:
-            squish_routes(self.machines, self.road_layout, self.Tmax)
+            neighbor_based_on_priority(self.machines, self.road_layout, self.Tmax, 50)
+
+        elif choose_f == 5:
+            neighbor_from_least_used_edge(self.machines, self.road_layout, self.Tmax)
+
+        # elif choose_f == 4:
+        #     squish_routes(self.machines, self.road_layout, self.Tmax)
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#

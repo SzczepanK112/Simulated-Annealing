@@ -22,7 +22,10 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
         if isinstance(other, Wierzcholek):
             return (self.x, self.y) == (other.x, other.y)
         return False
-    
+
+    def __lt__(self, other):
+        return self.x + self.y < other.x + other.y
+
     def __hash__(self):
         return hash((self.x, self.y))
 
@@ -56,6 +59,7 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
     def __hash__(self):
         # Hashowanie powinno uwzględniać tylko unikalne krawędzie, niezależnie od kierunku
         return hash((min(self.start, self.koniec), max(self.start, self.koniec)))
+
 
 class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
     def __init__(self):
