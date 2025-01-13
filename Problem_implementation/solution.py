@@ -393,17 +393,9 @@ class RoadClearingProblem:
         #elif choose_f == 5:
         #    neighbor_from_least_used_edge(self.machines, self.road_layout, self.Tmax)
 
-<<<<<<< HEAD
-=======
-        elif choose_f == 4:
-            neighbor_based_on_priority(self.machines, self.road_layout, self.Tmax, 50)
-
-        elif choose_f == 5:
-            neighbor_from_least_used_edge(self.machines, self.road_layout, self.Tmax)
-
         # elif choose_f == 4:
         #     squish_routes(self.machines, self.road_layout, self.Tmax)
->>>>>>> 1520c1cfcd968b708a295288577039e1f8dc09e1
+
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
