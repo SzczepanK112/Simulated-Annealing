@@ -22,7 +22,10 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
         if isinstance(other, Wierzcholek):
             return (self.x, self.y) == (other.x, other.y)
         return False
-    
+
+    def __lt__(self, other):
+        return self.x + self.y < other.x + other.y
+
     def __hash__(self):
         return hash((self.x, self.y))
 
@@ -56,6 +59,7 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
     def __hash__(self):
         # Hashowanie powinno uwzględniać tylko unikalne krawędzie, niezależnie od kierunku
         return hash((min(self.start, self.koniec), max(self.start, self.koniec)))
+
 
 class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
     def __init__(self):
@@ -141,119 +145,217 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         for krawedz in self.krawedzie:
             result += f"  {krawedz}\n"
         return result
+    
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    #-----------------------------------------------------METODY DO RYSOWANIA GRAFU-----------------------------------------------------------------------------------#
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-    def rysuj(self, size_x=10, size_y=10):
+    def rysuj(self, size_x=10, size_y=10, show_coords=True, decimal_places=2, show_labels=True, node_size=600, label_font_size=10, edge_width=4, show_edge_labels=True):
+        """
+        Rysuje graf
+
+        Parametry:
+        - size_x, size_y: rozmiar wykresu.
+        - show_coords: czy wyświetlać współrzędne węzłów.
+        - decimal_places: do ilu miejsc po przecinku zaokrąglać współrzędne.
+        - show_labels: czy wyświetlać etykiety węzłów.
+        - node_size: rozmiar węzła.
+        - label_font_size: wielkość czcionki etykiet węzłów.
+        - edge_width: grubość linii (krawędzi).
+        - show_edge_labels: czy wyświetlać tekst (etykiety) na krawędziach.
+        """
+
         G = nx.Graph()
 
-        # Dodaj wierzchołki
+        # Dodaj wierzchołki do NetworkX
         for w in self.wierzcholki:
             G.add_node((w.x, w.y))
 
-        # Dodaj krawędzie
-        edge_labels = {}  # Słownik do przechowywania etykiet krawędzi
-        for k in self.krawedzie:
-            G.add_edge((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))
-            # Etykiety z priorytetem i liczbą pasów
-            edge_labels[((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))] = f"Pr: {k.priorytet}, SL: {k.snow_level}"
-
-        # Określamy pozycje wierzchołków
-        pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
-
-        # Zwiększenie rozmiar obrazu
-        plt.figure(figsize=(size_x, size_y))
-
-        # Rysowanie grafu
-        nx.draw(G, pos, with_labels=True, node_size=600, node_color='skyblue', font_size=10, font_weight='bold',
-                edge_color='gray', width=4)
-
-        # Rysowanie etykiet krawędzi
-        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
-
-        # Rysowanie punktu początkowego (baza) na czerwono, ale z pustym środkiem
-        if self.baza:
-            plt.scatter(self.baza.x, self.baza.y, color='red', s=750, label='Baza', edgecolors='red', facecolors='none',
-                        zorder=5, linewidth=3)
-
-        # Wyświetlanie grafu z legendą
-        plt.legend()
-        plt.show()
-
-    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, size_x=10, size_y=10):
-        """
-        Rysuje graf z zaznaczeniem określonych krawędzi w rozwiązaniu.
-        - rozwiazanie: lista list krawędzi (rozwiazanie dla jednej maszyny).
-        """
-        # Kolory dla etapów
-        kolory_etapow = ['black', 'brown', 'green', 'blue', 'purple', 'red', 'pink', 'orange']
-        # Liczba etapów
-        stage_number = len(rozwiazanie)
-        # Rozszerzanie listy kolorów, aby była wystarczająco długa
-        kolory_etapow = kolory_etapow * ((stage_number // len(kolory_etapow)) + 1)
-
-        G = nx.DiGraph()  # Używamy DiGraph, aby obsługiwać kierunkowe krawędzie
-
-        # Dodaj wierzchołki
-        for w in self.wierzcholki:
-            G.add_node((w.x, w.y))
-
-        # Dodaj krawędzie
+        # Przygotuj słownik etykiet krawędzi
         edge_labels = {}
         for k in self.krawedzie:
             G.add_edge((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))
-            # Etykiety z priorytetem i poziomem śniegu
+            # Etykieta krawędzi (np. priorytet, snow_level)
             edge_labels[((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))] = f"Pr: {k.priorytet}, SL: {k.snow_level}"
 
-        # Określamy pozycje wierzchołków
+        # Określamy pozycje węzłów (tutaj po prostu współrzędne x,y)
         pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
 
-        # Zwiększenie rozmiaru obrazu
+        # Inicjalizacja matplotlib
         plt.figure(figsize=(size_x, size_y))
 
-        # Rysowanie grafu (domyślnych krawędzi bez przezroczystości i strzałek)
+        # Rysowanie grafu (bez etykiet węzłów)
+        # Ustawiamy 'width=edge_width', aby kontrolować grubość linii
         nx.draw(
-            G, pos, with_labels=True, node_size=600, node_color='skyblue', font_size=10, font_weight='bold',
-            edge_color='gray', width=2
+            G,
+            pos,
+            with_labels=False,
+            node_size=node_size,
+            node_color='skyblue',
+            edge_color='gray',
+            width=edge_width
         )
 
-        # Rysowanie etykiet krawędzi
-        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
+        # Rysowanie etykiet krawędzi (o ile włączone show_edge_labels)
+        if show_edge_labels:
+            # Skaluj rozmiar czcionki etykiet krawędzi proporcjonalnie do edge_width
+            # Bazowo było font_size=6 przy width=4, więc:
+            edge_label_font_size = int(6 * (edge_width / 4))
+            nx.draw_networkx_edge_labels(
+                G,
+                pos,
+                edge_labels=edge_labels,
+                font_size=edge_label_font_size
+            )
 
-        # Zaznaczenie krawędzi rozwiązania (kolorem w zależności od etapu)
-        already_drawn_edges = set()  # Zbiór już narysowanych krawędzi (dla obu kierunków)
-        
-        num_etapow = len(rozwiazanie)  # Liczba etapów (kroków)
+        # Jeśli chcemy wyświetlać etykiety węzłów
+        if show_labels:
+            node_labels = {}
+            for i, w in enumerate(self.wierzcholki):
+                if show_coords:
+                    # Zaokrąglone współrzędne do 'decimal_places'
+                    label_x = f"{w.x:.{decimal_places}f}"
+                    label_y = f"{w.y:.{decimal_places}f}"
+                    node_labels[(w.x, w.y)] = f"({label_x}, {label_y})"
+                else:
+                    # Nazwy W0, W1, W2... itp.
+                    node_labels[(w.x, w.y)] = f"W{i}"
+
+            nx.draw_networkx_labels(
+                G,
+                pos,
+                labels=node_labels,
+                font_size=label_font_size,
+                font_color='black'
+            )
+
+        # Rysowanie bazy (jeśli istnieje)
+        if self.baza:
+            plt.scatter(
+                self.baza.x,
+                self.baza.y,
+                color='red',
+                s=node_size * 1.25,
+                label='Baza',
+                edgecolors='red',
+                facecolors='none',
+                zorder=5,
+                linewidth=3
+            )
+
+        plt.legend()
+        plt.show()
+
+
+
+    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, size_x=10, size_y=10,show_coords=True, decimal_places=2, show_labels=True,node_size=600, label_font_size=10,
+                            edge_width=2, show_edge_labels=True):
+        """
+        Rysuje graf z zaznaczeniem określonych krawędzi w rozwiązaniu.
+        - rozwiazanie: lista list krawędzi (rozwiazanie dla jednej maszyny).
+        - size_x, size_y: rozmiar wykresu.
+        - show_coords: czy wyświetlać współrzędne węzłów.
+        - decimal_places: do ilu miejsc po przecinku zaokrąglać współrzędne.
+        - show_labels: czy wyświetlać etykiety węzłów.
+        - node_size: rozmiar węzła.
+        - label_font_size: wielkość czcionki etykiet węzłów.
+        - edge_width: grubość linii krawędzi.
+        - show_edge_labels: czy wyświetlać etykiety na krawędziach.
+        """
+        import matplotlib.pyplot as plt
+        import networkx as nx
+
+        # Ustawienia kolorów dla etapów
+        kolory_etapow = ['black', 'brown', 'green', 'blue', 'purple', 'red', 'pink', 'orange']
+        stage_number = len(rozwiazanie)
+        kolory_etapow = kolory_etapow * ((stage_number // len(kolory_etapow)) + 1)
+
+        # Tworzenie grafu NetworkX
+        G = nx.DiGraph()
+
+        # Dodawanie wierzchołków
+        for w in self.wierzcholki:
+            G.add_node((w.x, w.y))
+
+        # Dodawanie krawędzi z etykietami
+        edge_labels = {}
+        for k in self.krawedzie:
+            G.add_edge((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))
+            edge_labels[((k.start.x, k.start.y), (k.koniec.x, k.koniec.y))] = f"Pr: {k.priorytet}, SL: {k.snow_level}"
+
+        # Pozycje węzłów
+        pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
+
+        plt.figure(figsize=(size_x, size_y))
+
+        # Rysowanie podstawowego grafu z ustawioną grubością linii
+        nx.draw(
+            G, pos,
+            with_labels=False,  # etykiety węzłów dodamy później
+            node_size=node_size,
+            node_color='skyblue',
+            edge_color='gray',
+            width=edge_width
+        )
+
+        # Rysowanie etykiet krawędzi, jeśli włączone
+        if show_edge_labels:
+            # Skalowanie font_size dla etykiet krawędzi proporcjonalnie do edge_width
+            base_edge_font_size = 6  # podstawowy rozmiar czcionki przy width=2
+            scaled_font_size = base_edge_font_size * (edge_width / 2)
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=scaled_font_size)
+
+        # Rysowanie etykiet węzłów, jeśli włączone
+        if show_labels:
+            node_labels = {}
+            for i, w in enumerate(self.wierzcholki):
+                if show_coords:
+                    label_x = f"{w.x:.{decimal_places}f}"
+                    label_y = f"{w.y:.{decimal_places}f}"
+                    node_labels[(w.x, w.y)] = f"({label_x}, {label_y})"
+                else:
+                    node_labels[(w.x, w.y)] = f"W{i}"
+            nx.draw_networkx_labels(
+                G, pos,
+                labels=node_labels,
+                font_size=label_font_size,
+                font_color='black'
+            )
+
+        # Rysowanie zaznaczenia rozwiązań na drogach
+        already_drawn_edges = set()
         for idx, etap in enumerate(rozwiazanie):
-            # Oblicz kolor na podstawie etapu (czerpiemy z listy kolorów)
-            kolor = kolory_etapow[idx % len(kolory_etapow)]  # Używamy modula, aby cyklicznie przechodzić przez kolory
-
-            # Oblicz grubość linii dla tego etapu (start od 8, zmniejszaj o 1 dla każdego kolejnego etapu)
-            grubosc = max(10 - idx, 2)  # Minimalna grubość to 1, żeby nie była 0
-
+            kolor = kolory_etapow[idx % len(kolory_etapow)]
+            grubosc = max(edge_width*3 - idx, edge_width/2)  # dynamiczna grubość linii dla etapu
             for krawedz in etap:
-                # Krawędź w kierunku (start -> koniec) oraz w kierunku odwrotnym (koniec -> start)
                 edge_tuple = (krawedz.start.x, krawedz.start.y, krawedz.koniec.x, krawedz.koniec.y)
                 reverse_edge_tuple = (krawedz.koniec.x, krawedz.koniec.y, krawedz.start.x, krawedz.start.y)
-                
-                # Narysowanie krawędzi, jeśli nie została jeszcze narysowana w danym kierunku
                 nx.draw_networkx_edges(
                     G, pos,
                     edgelist=[((krawedz.start.x, krawedz.start.y), (krawedz.koniec.x, krawedz.koniec.y))],
-                    edge_color=kolor, width=grubosc, alpha=0.5, arrows=True, arrowstyle='-|>', arrowsize=14
+                    edge_color=kolor,
+                    width=grubosc,
+                    alpha=0.5,
+                    arrows=True,
+                    arrowstyle='-|>',
+                    arrowsize=14
                 )
-                # Dodanie krawędzi do zbioru narysowanych krawędzi (w obu kierunkach)
                 already_drawn_edges.add(edge_tuple)
                 already_drawn_edges.add(reverse_edge_tuple)
 
-        # Rysowanie punktu początkowego (baza) na czerwono, ale z pustym środkiem
+        # Rysowanie bazy (jeśli istnieje)
         if self.baza:
             plt.scatter(
-                self.baza.x, self.baza.y, color='red', s=750, label='Baza', edgecolors='red', facecolors='none',
-                zorder=5, linewidth=3
+                self.baza.x, self.baza.y,
+                color='red', s=750, label='Baza', edgecolors='red',
+                facecolors='none', zorder=5, linewidth=3
             )
 
-        # Wyświetlanie grafu z legendą
         plt.legend()
         plt.show()
+
+
+
 
     def rysuj_dwa_rozwiazania(self, rozwiazanie1: list, rozwiazanie2: list, size_x=10, size_y=10):
         """
@@ -339,3 +441,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
 
         # Wyświetlanie grafu z legendą
         ax.legend()
+
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#

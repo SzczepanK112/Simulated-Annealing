@@ -1,10 +1,11 @@
 import math
 import copy
+import random
 import struktury_danych
 from typing import List, Union, Set
 from funkcje_sasiedztwa_SK import *
 from funkcja_sasiedztwa_MK import *
-
+from  funkcja_sasiedztwa_PG import *
 
 class Machine:
     def __init__(self, speed=1):
@@ -215,27 +216,21 @@ class RoadClearingProblem:
     # -----------------------------------------------------------------------------------------------------------#
     # -------------------------------------------WERSJA V2-------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
-    def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, max_iterations_in_step):
+    def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations):
         # Oblicz początkowe zagrożenie na podstawie obecnego - poczatkowego rozwiązania
         current_danger = self.simulate_danger_2()
         best_danger = current_danger
 
         temperature = initial_temperature
         actual_solution = copy.deepcopy(self.machines)  # aktualne rozwiazanie
-        best_solution = self.machines
+        best_solution = copy.deepcopy(self.machines)
 
         for iteration in range(max_iterations):
             print("\n")
             print("-----ITERACJA ", iteration, "-------")
-            o = 1
-            for m in self.machines:
-                for etap in m.route:
-                    if len(etap) == 0:
-                        print("Pusty etap!!!! ", o)
-                o += 1
 
             # Generowanie sąsiedniego rozwiązania
-            self.generate_neighbor_2()
+            self.generate_neighbor_2(temperature)
 
             # Symulacja nowego rozwiązania i obliczenie zagrożenia
             new_danger = self.simulate_danger_2()
@@ -303,35 +298,101 @@ class RoadClearingProblem:
 
         return total_danger
 
-    def generate_neighbor_2(self):
+    def generate_neighbor_2(self, actual_temperature):
         """
         Generuje nowe rozwiazanie poprzez uzycie konkretnych funkcji sasiedztwa
         """
-        actual_solution_list = [m.route for m in self.machines]
+        graf_komp = len(self.road_layout.krawedzie) # ilość krawedzi/dróg w grafie - opis skomplikowania
+ 
+        # Parametry dla funkcja_sasiedztwa_MK - dostosowanie do skomplikowania grafu
+        glebokosc_poszukiwan = 6
+        param2 = 4
 
-        glebokosc_poszukiwan = 5
-        param2 = 2
-        choose_f = random.randint(0, 4)
-        #choose_f = 0
+        if graf_komp > 200:
+            glebokosc_poszukiwan = 12
+            param2 = 8
+
+        actual_temp = actual_temperature # Wartosc temperatury w danej iteracji
+
+        # --- Etap I ---
+        '''
+        W początkowych iteracjach nasze rozwiązanie może radykalniej się zmieniać
+        '''
+        if actual_temp > 1:
+            param_choose = random.randint(0, 100) # losujemy wartosc parametru
+
+            if param_choose < 65:
+                # Wprowadzamy bardziej radykalne zmiany
+                glebokosc_poszukiwan =  int(glebokosc_poszukiwan*1.5)# zwieksza ewentualna roznorodnosc trasy w f_sasiad_0
+                choose_f = random.choice([0, 2, 3])
+
+            else:
+                glebokosc_poszukiwan =  glebokosc_poszukiwan*0.5# mniejsza roznorodnosc trasy w f_sasiad_0
+                param2 = int(param2*1.5)
+                choose_f = random.choice([0, 1])
+
+
+        # --- Etap II ---
+        '''
+        W kolejnym etapie będziemy losowo wybierać funkcję sąsiedztwa
+        '''
+        if 0.01 < actual_temp <= 1:
+            glebokosc_poszukiwan = random.randint(int(glebokosc_poszukiwan*0.5), int(glebokosc_poszukiwan*2))
+            param2 = random.randint(int(param2*0.5), int(param2*2))
+            choose_f = random.choice([0, 1, 2, 3])
+
+        # --- Etap III ---
+        '''
+        W ostatnim etapie będziemy starać się 'doszlifować/ulepszyć' nasze rozwiązanie, używając mniej radykalnych zmian
+        '''
+        if actual_temp <= 0.01:
+            param_choose = random.randint(0, 100) # losujemy wartosc parametru
+
+            if param_choose < 65:
+                # Wprowadzamy mniej radykalne zmiany
+                glebokosc_poszukiwan = int(glebokosc_poszukiwan*0.5)# mniejsza roznorodnosc trasy w f_sasiad_0
+                param2 = int(param2*1.5)
+                choose_f = random.choice([0, 1])
+
+            else:
+                glebokosc_poszukiwan = int(glebokosc_poszukiwan*1.5)# zwieksza ewentualna roznorodnosc trasy w f_sasiad_0
+                choose_f = random.choice([0, 2, 3])
+
+        # --- Używane funkcje_sąsiedztwa ---
 
         if choose_f == 0:
-            rozw_1 = f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
-
-            # jesli nie udalo sie znalesc nowego rozwiazania uzyj innej funkcji sasiedztwa
-            if rozw_1 == actual_solution_list:
-                f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
+            f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
+            '''
+            Modyfikuje istniejącą trasę maszyny omijając jeden wierzchołek, zalezna od paramtru 'glebokosc_poszukiwan' 
+            (im większy parametr tym bardziej nowe/zróżnicowane rozwiązanie otrzymamy)
+            '''
 
         elif choose_f == 1:
             f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
+            '''
+            Rekonstruuje trase od losowo wybranego etapu, możliwość otrzymania duzych zmian przy wylosowaniu wczesnych etapów
+            '''
 
         elif choose_f == 2:
             generate_route_from_least_frequent(self.machines, self.road_layout, self.Tmax)
+            '''
+            Generuje trasę z bazy do najmniej uczęszczanej ulicy i/ewentualnie dokłada ulice na koniec trasy, aby wypełnić czas.
+            Możliwość wprowadzenia większych zmian.
+            '''
 
         elif choose_f == 3:
             change_path(self.machines, self.road_layout, self.Tmax)
+            '''
+            Modyfikuje trasę maszyny, usuwając jedną krawędź i zastępując ją nową trasą naprawioną algorytmem A*.
+            Przenosi krawędzie do następnego etapu, jeśli Tmax zostanie przekroczone.
+            '''
 
-        elif choose_f == 4:
-            squish_routes(self.machines, self.road_layout, self.Tmax)
+        #elif choose_f == 4:
+        #    neighbor_based_on_priority(self.machines, self.road_layout, self.Tmax, 50)
+
+        #elif choose_f == 5:
+        #    neighbor_from_least_used_edge(self.machines, self.road_layout, self.Tmax)
+
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
