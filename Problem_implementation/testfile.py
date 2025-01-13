@@ -13,7 +13,7 @@ m3 = Machine(speed=2)
 
 machines = [m1, m2, m3]
 
-Tmax = 15
+Tmax = 20
 
 problem = RoadClearingProblem(snowfall_forecast, graf, machines, Tmax)
 
@@ -29,7 +29,7 @@ rozw = [machine.route for machine in best_solution]
 
 for j, route in enumerate(rozw):
     route_l = 0
-    print(f'------- MASZYNA {j} -------')
+    print(f'------- MASZYNA {j + 1} -------')
     for i, stage in enumerate(route):
         stage_l = 0
         for edge in stage:
