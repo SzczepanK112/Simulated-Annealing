@@ -5,7 +5,8 @@ import struktury_danych
 from typing import List, Union, Set
 from funkcje_sasiedztwa_SK import *
 from funkcja_sasiedztwa_MK import *
-from  funkcja_sasiedztwa_PG import *
+from funkcja_sasiedztwa_PG import *
+
 
 class Machine:
     def __init__(self, speed=1):
@@ -360,6 +361,8 @@ class RoadClearingProblem:
 
         # --- Używane funkcje_sąsiedztwa ---
 
+
+        print(choose_f)
         if choose_f == 0:
             f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
             '''

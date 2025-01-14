@@ -55,16 +55,15 @@ def fill_remaining_time(road_layout, start_node, remaining_time, machine_speed):
     while True:
         # Get valid neighbors (excluding those that would create a dead end)
         valid_neighbors = [n for n in current_node.sasiedzi
-                           if len(n.sasiedzi) > 1 or n == road_layout.baza]
-
-        if last_node is not None:
-            valid_neighbors.remove(last_node)
+                           if (len(n.sasiedzi) > 1 or n == road_layout.baza) and n != last_node]
 
         if not valid_neighbors:
-            break
+            # Case when only valid neighbor is the one from which we came from
+            valid_neighbors = [last_node]
 
-        # Choose next edge (randomly or by priority)
+        # Choose next edge
         next_node = random.choice(valid_neighbors)
+            
         edge = road_layout.get_edge(current_node, next_node)
 
         # Check if adding this edge would exceed remaining time
@@ -142,8 +141,10 @@ def generate_route_from_least_frequent(machines, road_layout, Tmax, consider_pri
 
                     route.extend(additional_edges)
 
+                print(route)
                 route = [route] + [[] for _ in range(num_of_stages - 1)]
                 route = adjust_route_to_tmax(route, current_machine, Tmax)
+                print(route)
                 current_machine.route = route
                 return route
 
@@ -253,6 +254,7 @@ def change_path(machines, road_layout, Tmax):
                         removed_edge.koniec)  # Heurystyka (odległość do celu)
                     heapq.heappush(open_set, (f_score, neighbor))
 
+            print('dasdas')
         return None  # Jeśli nie znaleziono ścieżki
 
     machine = random.choice(machines)
@@ -260,15 +262,26 @@ def change_path(machines, road_layout, Tmax):
     new_route = machine_copy.route
 
     segment_idx = random.choice(range(len(new_route)))
-    edge_for_deletion_idx = random.choice(range(len(new_route[segment_idx])))
+
+    # if len(new_route[segment_idx]) == 0:
+    #     return None
+    #
+    try:
+        edge_for_deletion_idx = random.choice(range(len(new_route[segment_idx])))
+
+    except IndexError:
+        print(new_route[segment_idx])
+
     edge_for_deletion = new_route[segment_idx][edge_for_deletion_idx]
 
     repaired_path = repair_path_A_star(edge_for_deletion, road_layout)
+    print(repaired_path)
 
     if repaired_path is not None:
         # Replace the deleted edge with the repaired path
         new_route[segment_idx][edge_for_deletion_idx:edge_for_deletion_idx + 1] = repaired_path
         new_route = adjust_route_to_tmax(new_route, machine, Tmax)
+        print(new_route)
 
     machine.route = new_route
 
