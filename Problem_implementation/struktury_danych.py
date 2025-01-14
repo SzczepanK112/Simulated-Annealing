@@ -2,6 +2,8 @@ import math
 import copy
 import matplotlib.pyplot as plt
 import networkx as nx
+from geopy.distance import geodesic
+
 import matplotlib.colors as mcolors
 
 
@@ -29,8 +31,17 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
     def __hash__(self):
         return hash((self.x, self.y))
 
-    def get_distance(self, other):
-        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+    def get_distance(self, other, true_location=True):
+
+        if true_location:
+            coords_self = (self.y, self.x)  # (latitude, longitude) dla bieżącego punktu
+            coords_other = (other.y, other.x)  # (latitude, longitude) dla punktu 'other'
+
+            # Oblicz odległość geodezyjną między dwoma punktami
+            return geodesic(coords_self, coords_other).meters  # Odległość w metrach
+
+        else:
+            return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
 class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
@@ -42,8 +53,17 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
         self.dlugosc = self.oblicz_dlugosc()
         self.snow_level = 0
 
-    def oblicz_dlugosc(self):
-        return math.sqrt((self.start.x - self.koniec.x) ** 2 + (self.start.y - self.koniec.y) ** 2)
+    def oblicz_dlugosc(self, true_location=True):
+
+        if true_location:
+            coords_start = (self.start.y, self.start.x)  # (latitude, longitude) dla startu
+            coords_koniec = (self.koniec.y, self.koniec.x)  # (latitude, longitude) dla końca
+
+            # Oblicz odległość geodezyjną (w metrach)
+            return geodesic(coords_start, coords_koniec).meters
+
+        else:
+            return math.sqrt((self.start.x - self.koniec.x) ** 2 + (self.start.y - self.koniec.y) ** 2)
 
     def __repr__(self):
         return f"{self.start} -> {self.koniec}"

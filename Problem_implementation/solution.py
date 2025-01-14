@@ -10,7 +10,7 @@ from funkcja_sasiedztwa_PG import *
 
 class Machine:
     def __init__(self, speed=1):
-        self.speed = speed
+        self.speed = speed / 3.6  # In Km/h
         self.route = []
 
     def generate_initial_route(self, road_layout, Tmax, number_of_stages, consider_priority=False):
@@ -91,7 +91,7 @@ class RoadClearingProblem:
         self.road_layout = road_layout
         self.machines = machines
         self.danger = float("inf")
-        self.Tmax = Tmax
+        self.Tmax = Tmax * 3600  # In hours
 
         self.get_initial_path()
 

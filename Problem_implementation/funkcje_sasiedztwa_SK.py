@@ -34,7 +34,7 @@ def find_path_to_edge(road_layout, target_edge, machine_speed):
             new_path = path + [edge]
             g_score = sum(e.oblicz_dlugosc() for e in new_path)
             # Use minimum distance to either end of target edge as heuristic
-            h_score = neighbor.get_distance(target_edge.start)
+            h_score = neighbor.get_distance(target_edge.start) # road_layout.get_edge(neighbor, target_edge.start).dlugosc
             f_score = g_score + h_score
 
             heapq.heappush(open_set, (f_score, neighbor, new_path))
@@ -141,10 +141,10 @@ def generate_route_from_least_frequent(machines, road_layout, Tmax, consider_pri
 
                     route.extend(additional_edges)
 
-                print(route)
+                # print(route)
                 route = [route] + [[] for _ in range(num_of_stages - 1)]
                 route = adjust_route_to_tmax(route, current_machine, Tmax)
-                print(route)
+                # print(route)
                 current_machine.route = route
                 return route
 
@@ -246,15 +246,16 @@ def change_path(machines, road_layout, Tmax):
 
                 # Oblicz koszt przejścia
                 tentative_g_score = g_score[current] + current.get_distance(neighbor)
+                # graph.get_edge(current, neighbor).dlugosc
 
                 if tentative_g_score < g_score[neighbor]:
                     came_from[neighbor] = current  # Zaktualizuj ścieżkę
                     g_score[neighbor] = tentative_g_score
-                    f_score = tentative_g_score + neighbor.get_distance(
-                        removed_edge.koniec)  # Heurystyka (odległość do celu)
+                    f_score = tentative_g_score + neighbor.get_distance(removed_edge.koniec)
+                    # graph.get_edge(neighbor, removed_edge.koniec).dlugosc # Heurystyka (odległość do celu)
                     heapq.heappush(open_set, (f_score, neighbor))
 
-            print('dasdas')
+            # print('dasdas')
         return None  # Jeśli nie znaleziono ścieżki
 
     machine = random.choice(machines)
