@@ -39,11 +39,10 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
             coords_other = (other.y, other.x)  # (latitude, longitude) dla punktu 'other'
 
             # Oblicz odległość geodezyjną między dwoma punktami
-            return geodesic(coords_self, coords_other).meters  # Odległość w metrach
+            return geodesic(coords_self, coords_other).meters / 1000  # Odległość w KILOmetrach
 
         else:
-            return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2) * 1000
-
+            return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
     def __init__(self, start, koniec, priorytet=0, pasy=1, true_location=True):
