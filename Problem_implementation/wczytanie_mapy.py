@@ -4,8 +4,9 @@ from struktury_danych import *
 # gdzie dane reprezentowane sa w nastepujacy sposob:
 # (wierzcholek_1) (wierzcholek_2) priorytet pasy
 
+
 def wczytaj_graf_z_pliku(nazwa_pliku):
-    graf = Graf()  # Tworzymy pusty graf
+    graf = Graf(true_location=False)  # Tworzymy pusty graf
     
     with open(nazwa_pliku, 'r') as plik:
         linie = plik.readlines()  # Wczytujemy wszystkie linie z pliku

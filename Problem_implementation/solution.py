@@ -9,7 +9,7 @@ from funkcja_sasiedztwa_PG import *
 
 
 class Machine:
-    def __init__(self, speed=1):
+    def __init__(self, speed=30):
         self.speed = speed / 3.6  # In Km/h
         self.route = []
 
@@ -361,8 +361,6 @@ class RoadClearingProblem:
 
         # --- Używane funkcje_sąsiedztwa ---
 
-
-        print(choose_f)
         if choose_f == 0:
             f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
             '''

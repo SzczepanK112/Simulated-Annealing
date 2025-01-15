@@ -276,13 +276,13 @@ def change_path(machines, road_layout, Tmax):
     edge_for_deletion = new_route[segment_idx][edge_for_deletion_idx]
 
     repaired_path = repair_path_A_star(edge_for_deletion, road_layout)
-    print(repaired_path)
+    # print(repaired_path)
 
     if repaired_path is not None:
         # Replace the deleted edge with the repaired path
         new_route[segment_idx][edge_for_deletion_idx:edge_for_deletion_idx + 1] = repaired_path
         new_route = adjust_route_to_tmax(new_route, machine, Tmax)
-        print(new_route)
+        # print(new_route)
 
     machine.route = new_route
 

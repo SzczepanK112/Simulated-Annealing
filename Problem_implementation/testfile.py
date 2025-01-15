@@ -9,19 +9,18 @@ snowfall_forecast = [8, 3, 7, 2, 1, 5, 10, 4]
 
 m1 = Machine()
 m2 = Machine()
-m3 = Machine(speed=2)
+m3 = Machine(speed=60)
 
 machines = [m1, m2, m3]
 
-Tmax = 30
+Tmax = 1
 
 problem = RoadClearingProblem(snowfall_forecast, graf, machines, Tmax)
 
-best_solution, best_danger, summary = problem.simulated_annealing_2(
+best_solution, best_danger = problem.simulated_annealing_2(
     initial_temperature=1000,
     cooling_rate=0.98,
     max_iterations=1000,
-    max_iterations_in_step=0
 )
 
 # print("Najlepsze rozwiązanie:", [machine.route for machine in best_solution])
@@ -44,4 +43,3 @@ for j, route in enumerate(rozw):
 print(Tmax * len(snowfall_forecast))
 print("Poziom zagrożenia:", best_danger)
 
-problem.print_summary(summary)

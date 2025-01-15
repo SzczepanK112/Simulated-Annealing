@@ -8,10 +8,11 @@ import matplotlib.colors as mcolors
 
 
 class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
-    def __init__(self, x, y):
+    def __init__(self, x, y, true_location=True):
         self.x = x
-        self.y = y
-        self.sasiedzi = []  # Lista sąsiednich wierzcholkow 
+        self.y = y 
+        self.sasiedzi = []  # Lista sąsiednich wierzcholkow
+        self.true_location = true_location
 
     def dodaj_sasiada(self, krawedz):
         if krawedz not in self.sasiedzi:  # Dodaj tylko jeśli nie ma jeszcze takiego sąsiada
@@ -31,9 +32,9 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
     def __hash__(self):
         return hash((self.x, self.y))
 
-    def get_distance(self, other, true_location=True):
+    def get_distance(self, other):
 
-        if true_location:
+        if self.true_location:
             coords_self = (self.y, self.x)  # (latitude, longitude) dla bieżącego punktu
             coords_other = (other.y, other.x)  # (latitude, longitude) dla punktu 'other'
 
@@ -41,29 +42,33 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
             return geodesic(coords_self, coords_other).meters  # Odległość w metrach
 
         else:
-            return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+            return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2) * 1000
 
 
 class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
-    def __init__(self, start, koniec, priorytet=0, pasy=1):
+    def __init__(self, start, koniec, priorytet=0, pasy=1, true_location=True):
         self.start = start
         self.koniec = koniec
         self.priorytet = priorytet  # priorytet w zakresie 0-100
         self.pasy = pasy  # ilosc pasow
-        self.dlugosc = self.oblicz_dlugosc()
+        self.true_location = true_location
         self.snow_level = 0
 
-    def oblicz_dlugosc(self, true_location=True):
+        self.dlugosc = self.oblicz_dlugosc()
 
-        if true_location:
-            coords_start = (self.start.y, self.start.x)  # (latitude, longitude) dla startu
-            coords_koniec = (self.koniec.y, self.koniec.x)  # (latitude, longitude) dla końca
+    def oblicz_dlugosc(self):
 
-            # Oblicz odległość geodezyjną (w metrach)
-            return geodesic(coords_start, coords_koniec).meters
+        return self.start.get_distance(self.koniec)
 
-        else:
-            return math.sqrt((self.start.x - self.koniec.x) ** 2 + (self.start.y - self.koniec.y) ** 2)
+        # if self.true_location:
+        #     coords_start = (self.start.y, self.start.x)  # (latitude, longitude) dla startu
+        #     coords_koniec = (self.koniec.y, self.koniec.x)  # (latitude, longitude) dla końca
+        #
+        #     # Oblicz odległość geodezyjną (w metrach)
+        #     return geodesic(coords_start, coords_koniec).meters
+        #
+        # else:
+        #     return math.sqrt((self.start.x - self.koniec.x) ** 2 + (self.start.y - self.koniec.y) ** 2) * 1000
 
     def __repr__(self):
         return f"{self.start} -> {self.koniec}"
@@ -82,10 +87,11 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
 
 
 class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
-    def __init__(self):
+    def __init__(self, true_location=True):
         self.wierzcholki = []
         self.krawedzie = []
         self.baza = None  # Punkt początkowy (baza)
+        self.true_location = true_location
 
     def dodaj_baze(self, x, y):
         # Sprawdzenie, czy wierzchołek o podanych współrzędnych już istnieje
@@ -95,7 +101,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 return
             
         # Jeśli wierzchołek nie istnieje, dodaj nowy jako bazę
-        self.baza = Wierzcholek(x, y)
+        self.baza = Wierzcholek(x, y, self.true_location)
         self.wierzcholki.append(self.baza)
 
     def dodaj_wierzcholek(self, x, y):
@@ -105,7 +111,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 return wierzcholek  # Zwróć istniejący wierzchołek
 
         # Jeśli wierzchołek nie istnieje, stwórz nowy
-        nowy_wierzcholek = Wierzcholek(x, y)
+        nowy_wierzcholek = Wierzcholek(x, y, self.true_location)
         self.wierzcholki.append(nowy_wierzcholek)
         return nowy_wierzcholek
 
@@ -150,10 +156,10 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         w1 = self.dodaj_wierzcholek(*punkt1)
         w2 = self.dodaj_wierzcholek(*punkt2)
 
-        krawedz_1 = Krawedz(w1, w2, priorytet, pasy)
+        krawedz_1 = Krawedz(w1, w2, priorytet, pasy, self.true_location)
         self.krawedzie.append(krawedz_1)
 
-        krawedz_2 = Krawedz(w2, w1, priorytet, pasy)
+        krawedz_2 = Krawedz(w2, w1, priorytet, pasy, self.true_location)
         self.krawedzie.append(krawedz_2)
 
         # Powiąż krawędź z wierzchołkami
