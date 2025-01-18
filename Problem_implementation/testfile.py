@@ -1,5 +1,6 @@
 from wczytanie_mapy import *
 from solution import *
+from diagnostics import *
 
 nazwa_pliku = 'rozklad_ulic.txt'
 # Tworzenie grafu
@@ -17,7 +18,7 @@ Tmax = 1
 
 problem = RoadClearingProblem(snowfall_forecast, graf, machines, Tmax)
 
-best_solution, best_danger = problem.simulated_annealing_2(
+best_solution, best_danger, d = problem.simulated_annealing_2(
     initial_temperature=1000,
     cooling_rate=0.98,
     max_iterations=1000,
@@ -43,3 +44,4 @@ for j, route in enumerate(rozw):
 print(Tmax * len(snowfall_forecast))
 print("Poziom zagrożenia:", best_danger)
 
+plot_diagnostic_charts(*d)

@@ -155,28 +155,21 @@ class RoadClearingApp:
         file_path = filedialog.askopenfilename(filetypes=[("Pliki tekstowe", "*.txt")])
         if file_path:
             try:
-                self.road_graph = self.load_graph_from_file(file_path)
-                print("Graf załadowany:", self.road_graph.nodes)
+                self.road_graph = wczytaj_graf_z_pliku(file_path)
+                print("Graf załadowany")
                 self.draw_graph()
                 messagebox.showinfo("Sukces", "Plik został wczytany poprawnie!")
             except Exception as e:
                 messagebox.showerror("Błąd", f"Nie udało się wczytać grafu: {e}")
 
-    def load_graph_from_file(self, file_path):
-        graph = nx.Graph()
-        with open(file_path, 'r') as file:
-            for line in file:
-                node1, node2, weight, _ = line.strip().split()
-                graph.add_edge(tuple(map(float, node1[1:-1].split(','))), tuple(map(float, node2[1:-1].split(','))), weight=float(weight))
-        return graph
-
     def draw_graph(self):
         if not hasattr(self, 'road_graph'):
             messagebox.showerror("Błąd", "Graf nie został wczytany.")
             return
-        self.ax.clear()
-        pos = nx.spring_layout(self.road_graph)
-        nx.draw(self.road_graph, pos, ax=self.ax, with_labels=True, node_size=500, node_color='lightblue', edge_color='gray')
+        # self.ax.clear()
+        # pos = nx.spring_layout(self.road_graph)
+        # nx.draw(self.road_graph, pos, ax=self.ax, with_labels=True, node_size=500, node_color='lightblue', edge_color='gray')
+        self.road_graph.rysuj(ax=self.ax)
         self.canvas.draw()
 
     def add_machine(self):
@@ -189,8 +182,8 @@ class RoadClearingApp:
         label.pack(side=tk.LEFT)
         entry = ttk.Entry(frame, width=5, font=("Arial", 10), justify='center', foreground='black')
         entry.pack(side=tk.LEFT, padx=5)
-        remove_button = tk.Button(frame, text="❌", command=lambda: self.remove_machine(frame), bg='red', fg='white', font=("Arial", 10, "bold"))
-        remove_button.pack(side=tk.LEFT, padx=5)
+        remove_button = tk.Button(frame, text="X", command=lambda: self.remove_machine(frame), bg='red', fg='white', font=("Arial", 10, "bold"))
+        remove_button.pack(padx=0)
         self.machine_list.append((frame, label, entry, remove_button))
         self.scrollable_frame.update_idletasks()
         self.machine_canvas.configure(scrollregion=self.machine_canvas.bbox("all"))

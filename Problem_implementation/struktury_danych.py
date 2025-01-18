@@ -44,6 +44,7 @@ class Wierzcholek:  # Obrazuje poczatek/koniec ulicy lub skrzyzowanie ulic
         else:
             return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
+
 class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
     def __init__(self, start, koniec, priorytet=0, pasy=1, true_location=True):
         self.start = start
@@ -175,7 +176,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
     #-----------------------------------------------------METODY DO RYSOWANIA GRAFU-----------------------------------------------------------------------------------#
     #-----------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-    def rysuj(self, size_x=10, size_y=10, show_coords=True, decimal_places=2, show_labels=True, node_size=600, label_font_size=10, edge_width=4, show_edge_labels=True):
+    def rysuj(self, ax=None, size_x=10, size_y=10, show_coords=True, decimal_places=2, show_labels=True, node_size=600, label_font_size=10, edge_width=4, show_edge_labels=True):
         """
         Rysuje graf
 
@@ -206,14 +207,17 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         # Określamy pozycje węzłów (tutaj po prostu współrzędne x,y)
         pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
 
-        # Inicjalizacja matplotlib
-        plt.figure(figsize=(size_x, size_y))
+        # Jeśli nie podano axes, tworzymy nowe okno
+        if ax is None:
+            plt.figure(figsize=(size_x, size_y))
+            ax = plt.gca()
 
         # Rysowanie grafu (bez etykiet węzłów)
         # Ustawiamy 'width=edge_width', aby kontrolować grubość linii
         nx.draw(
             G,
             pos,
+            ax=ax,
             with_labels=False,
             node_size=node_size,
             node_color='skyblue',
@@ -230,7 +234,8 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 G,
                 pos,
                 edge_labels=edge_labels,
-                font_size=edge_label_font_size
+                font_size=edge_label_font_size,
+                ax=ax
             )
 
         # Jeśli chcemy wyświetlać etykiety węzłów
@@ -239,8 +244,8 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
             for i, w in enumerate(self.wierzcholki):
                 if show_coords:
                     # Zaokrąglone współrzędne do 'decimal_places'
-                    label_x = f"{w.x:.{decimal_places}f}"
-                    label_y = f"{w.y:.{decimal_places}f}"
+                    label_x = f"{w.x: .{decimal_places}f}"
+                    label_y = f"{w.y: .{decimal_places}f}"
                     node_labels[(w.x, w.y)] = f"({label_x}, {label_y})"
                 else:
                     # Nazwy W0, W1, W2... itp.
@@ -251,12 +256,13 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 pos,
                 labels=node_labels,
                 font_size=label_font_size,
-                font_color='black'
+                font_color='black',
+                ax=ax
             )
 
         # Rysowanie bazy (jeśli istnieje)
         if self.baza:
-            plt.scatter(
+            ax.scatter(
                 self.baza.x,
                 self.baza.y,
                 color='red',
@@ -268,8 +274,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 linewidth=3
             )
 
-        plt.legend()
-        plt.show()
+        ax.legend()
 
 
 

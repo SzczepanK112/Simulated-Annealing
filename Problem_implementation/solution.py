@@ -109,10 +109,23 @@ class RoadClearingProblem:
     # -----------------------------------------------------------------------------------------------------------#
     def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, choose_neighbour_function=[4]):
         # Oblicz początkowe zagrożenie na podstawie obecnego - poczatkowego rozwiązania
+        '''
+        :param initial_temperature:
+        :param cooling_rate:
+        :param max_iterations:
+        :return: best_solution, best_danger, diagnostics -> lista zawierająca 4 listy:
+                 pierwsza lista -> historia wygenerowanych zagrożeń
+                 druga lista -> historia najlepszych zagrożeń
+                 trzecia lista -> historia temperatury
+        '''
+
         current_danger = self.simulate_danger_2()
         best_danger = current_danger
 
         temperature = initial_temperature
+
+        diagnostics = [[best_danger], [best_danger], [temperature]]
+
         actual_solution = copy.deepcopy(self.machines)  # aktualne rozwiazanie
         best_solution = copy.deepcopy(self.machines)
 
@@ -125,7 +138,6 @@ class RoadClearingProblem:
 
             # Symulacja nowego rozwiązania i obliczenie zagrożenia
             new_danger = self.simulate_danger_2()
-
             print("NEW DANGER -> ", new_danger)
 
             # Oblicz różnicę zagrożenia
@@ -149,13 +161,17 @@ class RoadClearingProblem:
                 # Schładzanie temperatury
             temperature *= cooling_rate
 
+            diagnostics[0].append(new_danger)
+            diagnostics[1].append(current_danger)
+            diagnostics[2].append(temperature)
+
             # Warunek zakończenia
             if temperature < 1e-3:
                 print("Zakończenie przez za niską temperature!")
                 break
 
         self.machines = best_solution
-        return best_solution, best_danger
+        return best_solution, best_danger, diagnostics
 
     def simulate_danger_2(self):
         """
