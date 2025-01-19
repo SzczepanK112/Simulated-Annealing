@@ -129,7 +129,7 @@ class RoadClearingProblem:
         actual_solution = copy.deepcopy(self.machines)  # aktualne rozwiazanie
         best_solution = copy.deepcopy(self.machines)
 
-        if choose_neighbour_function is None:
+        if choose_neighbour_function is None or set(choose_neighbour_function) == {0, 1, 2, 3}: # użycie wszystkich funkcji sąsiedztwa jednocześnie
             choose_neighbour_function = [4]
 
         for iteration in range(max_iterations):
