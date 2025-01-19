@@ -22,6 +22,7 @@ best_solution, best_danger, d = problem.simulated_annealing_2(
     initial_temperature=1000,
     cooling_rate=0.98,
     max_iterations=1000,
+    choose_neighbour_function=[0, 1, 2, 3]
 )
 
 # print("Najlepsze rozwiązanie:", [machine.route for machine in best_solution])

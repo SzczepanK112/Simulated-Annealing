@@ -200,7 +200,8 @@ class RoadClearingApp:
             return
 
         try:
-            Tmax = int(self.max_iterations_entry.get())
+            Tmax = int(self.time_between_entry.get())
+            max_iterations = int(self.max_iterations_entry.get())
             snowfall_forecast = list(map(int, self.snowfall_entry.get().strip('[]').split(',')))
             temperature = float(self.temperature_entry.get())
             cooling_rate = float(self.cooling_rate_entry.get())
@@ -226,7 +227,7 @@ class RoadClearingApp:
             best_solution, best_danger, diagnostics = problem.simulated_annealing_2(
                 initial_temperature=temperature,
                 cooling_rate=cooling_rate,
-                max_iterations=Tmax,
+                max_iterations=max_iterations,
                 choose_neighbour_function=neighborhood_functions
             )
 

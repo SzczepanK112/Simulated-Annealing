@@ -47,7 +47,7 @@ def plot_diagnostic_charts(danger, best_danger, temperature):
     current_plot[0] = 0  # Reset indeksu wykresu
 
     # Tworzenie figury i osi
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 7))
     plt.subplots_adjust(bottom=0.2)  # Miejsce na przyciski
 
     # Dodawanie przycisków
