@@ -37,7 +37,7 @@ def f_sasiad_2(rozw_aktalne, graf, T_max):
 
 import random
 
-def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
+def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max): # modify_route_avoiding_vertex
     # Funkcja wybiera losowo maszyne, ktorej trasa bedzie modyfikowana
     # Nastepnie przez wybranie losowo sciezki z trasy stara znalezc sie 
     # nowa trase, ktora bedzie omijała jeden wierzcholek
@@ -182,7 +182,7 @@ def f_sasiad_1(rozw_aktalne, glebokosc_poszukiwan, graf, T_max):
 
 
 
-def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2):
+def f_sasiad_2(rozw_aktalne, graf, T_max, param2=2): # reconstruct_route_from_stage
     # Funkcja wybiera losowo maszyne, ktorej trasa bedzie modyfikowana
     # Nastepnie wybierany jest losowo etap (z pominieciem pierwszego - od bazy), 
     # gdzie w nowym rozwiazaniu zachowane zostaja poprzednie etapy, a etapy od wybranego
