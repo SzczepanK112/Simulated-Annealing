@@ -79,7 +79,7 @@ def oblicz_pasy(edge_data):
         return 1
 
 
-def pobierz_graf_osm_z_punktu(center_point, dist=500, dist_type="bbox", network_type="drive", drogi_glowne=False, custom_drogi=None):
+def pobierz_graf_osm_z_punktu(center_point, dist=800, dist_type="bbox", network_type="drive", drogi_glowne=False, custom_drogi=None):
     """
     Pobiera wycinek mapy z OSM wokół zadanego punktu (center_point)
     w promieniu dist (w metrach) i tworzy obiekt klasy 'Graf'.
@@ -128,7 +128,6 @@ def pobierz_graf_osm_z_punktu(center_point, dist=500, dist_type="bbox", network_
         y_baza = G_osm.nodes[pierwszy_wezel_id]["y"]
         graf.dodaj_baze(x_baza, y_baza)
 
-
     center_lat, center_lon = center_point
     max_distance = dist
     for u, v, key, data in G_osm.edges(keys=True, data=True):
@@ -143,3 +142,12 @@ def pobierz_graf_osm_z_punktu(center_point, dist=500, dist_type="bbox", network_
         graf.dodaj_krawedz((x_u, y_u), (x_v, y_v), priorytet, pasy)
 
     return graf
+
+
+def get_graph_of_city(city_name: str, **kwargs):
+    city_loc_dict = {
+        "Kraków": (50.062756, 19.938077),
+        "Kęty": (49.88335218571101, 19.22146813090962)
+                     }
+
+    return pobierz_graf_osm_z_punktu(city_loc_dict[city_name], **kwargs)

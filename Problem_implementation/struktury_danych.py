@@ -57,18 +57,7 @@ class Krawedz:  # Obrazuje ulice polaczona przez dwa wierzcholki
         self.dlugosc = self.oblicz_dlugosc()
 
     def oblicz_dlugosc(self):
-
         return self.start.get_distance(self.koniec)
-
-        # if self.true_location:
-        #     coords_start = (self.start.y, self.start.x)  # (latitude, longitude) dla startu
-        #     coords_koniec = (self.koniec.y, self.koniec.x)  # (latitude, longitude) dla końca
-        #
-        #     # Oblicz odległość geodezyjną (w metrach)
-        #     return geodesic(coords_start, coords_koniec).meters
-        #
-        # else:
-        #     return math.sqrt((self.start.x - self.koniec.x) ** 2 + (self.start.y - self.koniec.y) ** 2) * 1000
 
     def __repr__(self):
         return f"{self.start} -> {self.koniec}"
@@ -276,9 +265,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
 
         ax.legend()
 
-
-
-    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, ax=None, size_x=10, size_y=10,show_coords=True, decimal_places=2, show_labels=True,node_size=600, label_font_size=10,
+    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, ax=None, size_x=10, size_y=10, show_coords=True, decimal_places=2, show_labels=True, node_size=600, label_font_size=10,
                             edge_width=2, show_edge_labels=True):
         """
         Rysuje graf z zaznaczeniem określonych krawędzi w rozwiązaniu.
@@ -320,8 +307,6 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
 
         # Pozycje węzłów
         pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
-
-        ax.figure(figsize=(size_x, size_y))
 
         # Rysowanie podstawowego grafu z ustawioną grubością linii
         nx.draw(
@@ -390,9 +375,6 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
             )
 
         ax.show()
-
-
-
 
     def rysuj_dwa_rozwiazania(self, rozwiazanie1: list, rozwiazanie2: list, size_x=10, size_y=10):
         """

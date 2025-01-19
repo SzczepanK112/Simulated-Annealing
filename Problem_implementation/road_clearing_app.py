@@ -1,12 +1,12 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import importlib
 from wczytanie_mapy import wczytaj_graf_z_pliku  # Funkcja do wczytania grafu
 from solution import RoadClearingProblem, Machine  # Algorytm optymalizacji
 from diagnostics import plot_diagnostic_charts
+from fast_map_import import get_graph_of_city
+
 
 class RoadClearingApp:
     def __init__(self, root):
@@ -150,6 +150,13 @@ class RoadClearingApp:
             self.root.update_idletasks()
             city_window.destroy()
 
+            try:
+                self.road_graph = get_graph_of_city(self.selected_city.get(), custom_drogi=["tertiary", "residential"])
+                print("Graf załadowany")
+                self.draw_graph()
+            except Exception as e:
+                messagebox.showerror("Błąd", f"Nie udało się wczytać grafu: {e}")
+
         ttk.Button(city_window, text="OK", command=set_city).pack(pady=10)
 
     def load_file(self):
@@ -169,7 +176,7 @@ class RoadClearingApp:
             return
 
         self.ax.clear()
-        self.road_graph.rysuj(ax=self.ax)
+        self.road_graph.rysuj(ax=self.ax, show_labels=False, show_edge_labels=False, node_size=50, edge_width=2)
         self.canvas.draw()
 
     def add_machine(self):
@@ -242,9 +249,8 @@ class RoadClearingApp:
         if not solution:
             return
 
+        self.road_graph.rysuj_z_rozwiazaniem(solution[0], ax=self.ax)
         plot_diagnostic_charts(*diagnostics)
-
-        self.road_graph.rysuj_z_rozwiazaniem(solution, ax=self.ax)
 
 
 if __name__ == "__main__":
