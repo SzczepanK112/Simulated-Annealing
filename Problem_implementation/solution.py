@@ -107,7 +107,7 @@ class RoadClearingProblem:
     # -----------------------------------------------------------------------------------------------------------#
     # -------------------------------------------WERSJA V2-------------------------------------------------------#
     # -----------------------------------------------------------------------------------------------------------#
-    def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, choose_neighbour_function=[4]):
+    def simulated_annealing_2(self, initial_temperature, cooling_rate, max_iterations, choose_neighbour_function=None):
         # Oblicz początkowe zagrożenie na podstawie obecnego - poczatkowego rozwiązania
         '''
         :param initial_temperature:
@@ -128,6 +128,9 @@ class RoadClearingProblem:
 
         actual_solution = copy.deepcopy(self.machines)  # aktualne rozwiazanie
         best_solution = copy.deepcopy(self.machines)
+
+        if choose_neighbour_function is None:
+            choose_neighbour_function = [4]
 
         for iteration in range(max_iterations):
             print("\n")
@@ -168,6 +171,10 @@ class RoadClearingProblem:
             # Warunek zakończenia
             if temperature < 1e-3:
                 print("Zakończenie przez za niską temperature!")
+                break
+
+            if best_danger == 0:
+                print("Zakończenie poprzez wyzerowanie funkcji celu")
                 break
 
         self.machines = best_solution

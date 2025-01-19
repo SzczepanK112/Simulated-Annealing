@@ -278,7 +278,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
 
 
 
-    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, size_x=10, size_y=10,show_coords=True, decimal_places=2, show_labels=True,node_size=600, label_font_size=10,
+    def rysuj_z_rozwiazaniem(self, rozwiazanie: list, ax=None, size_x=10, size_y=10,show_coords=True, decimal_places=2, show_labels=True,node_size=600, label_font_size=10,
                             edge_width=2, show_edge_labels=True):
         """
         Rysuje graf z zaznaczeniem określonych krawędzi w rozwiązaniu.
@@ -307,6 +307,11 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         for w in self.wierzcholki:
             G.add_node((w.x, w.y))
 
+        # Jeśli nie podano axes, tworzymy nowe okno
+        if ax is None:
+            plt.figure(figsize=(size_x, size_y))
+            ax = plt.gca()
+
         # Dodawanie krawędzi z etykietami
         edge_labels = {}
         for k in self.krawedzie:
@@ -316,11 +321,12 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
         # Pozycje węzłów
         pos = {(w.x, w.y): (w.x, w.y) for w in self.wierzcholki}
 
-        plt.figure(figsize=(size_x, size_y))
+        ax.figure(figsize=(size_x, size_y))
 
         # Rysowanie podstawowego grafu z ustawioną grubością linii
         nx.draw(
             G, pos,
+            ax=ax,
             with_labels=False,  # etykiety węzłów dodamy później
             node_size=node_size,
             node_color='skyblue',
@@ -333,7 +339,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
             # Skalowanie font_size dla etykiet krawędzi proporcjonalnie do edge_width
             base_edge_font_size = 6  # podstawowy rozmiar czcionki przy width=2
             scaled_font_size = base_edge_font_size * (edge_width / 2)
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=scaled_font_size)
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=scaled_font_size, ax=ax)
 
         # Rysowanie etykiet węzłów, jeśli włączone
         if show_labels:
@@ -349,7 +355,8 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 G, pos,
                 labels=node_labels,
                 font_size=label_font_size,
-                font_color='black'
+                font_color='black',
+                ax=ax
             )
 
         # Rysowanie zaznaczenia rozwiązań na drogach
@@ -368,21 +375,21 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                     alpha=0.5,
                     arrows=True,
                     arrowstyle='-|>',
-                    arrowsize=14
+                    arrowsize=14,
+                    ax=ax
                 )
                 already_drawn_edges.add(edge_tuple)
                 already_drawn_edges.add(reverse_edge_tuple)
 
         # Rysowanie bazy (jeśli istnieje)
         if self.baza:
-            plt.scatter(
+            ax.scatter(
                 self.baza.x, self.baza.y,
                 color='red', s=750, label='Baza', edgecolors='red',
                 facecolors='none', zorder=5, linewidth=3
             )
 
-        plt.legend()
-        plt.show()
+        ax.show()
 
 
 

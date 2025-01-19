@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import importlib
 from wczytanie_mapy import wczytaj_graf_z_pliku  # Funkcja do wczytania grafu
 from solution import RoadClearingProblem, Machine  # Algorytm optymalizacji
+from diagnostics import plot_diagnostic_charts
 
 class RoadClearingApp:
     def __init__(self, root):
@@ -103,10 +104,10 @@ class RoadClearingApp:
 
         # Wybór metody sąsiedztwa
         self.neighborhood_methods = {
-            "MK1": "funkcja_sasiedztwa_MK.f_sasiad_1",  # Załaduj funkcję
-            "MK2": "funkcja_sasiedztwa_MK.f_sasiad_2",  # Załaduj funkcję
-            "SK1": "funkcje_sasiedztwa_SK.generate_route_from_least_frequent",  # Załaduj funkcję
-            "SK2": "funkcje_sasiedztwa_SK.change_path"  # Załaduj funkcję
+            "MK1": 0,  # Załaduj funkcję
+            "MK2": 1,  # Załaduj funkcję
+            "SK1": 2,  # Załaduj funkcję
+            "SK2": 3  # Załaduj funkcję
         }
 
         self.neighborhood_choices = {}
@@ -137,7 +138,7 @@ class RoadClearingApp:
         city_window.geometry("350x250")
         tk.Label(city_window, text="Wybierz miasto:", font=("Arial", 12)).pack(pady=10)
 
-        cities = ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk"]
+        cities = ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk", "Kęty"]
         self.selected_city = tk.StringVar(value=cities[0])
 
         for city in cities:
@@ -166,9 +167,8 @@ class RoadClearingApp:
         if not hasattr(self, 'road_graph'):
             messagebox.showerror("Błąd", "Graf nie został wczytany.")
             return
-        # self.ax.clear()
-        # pos = nx.spring_layout(self.road_graph)
-        # nx.draw(self.road_graph, pos, ax=self.ax, with_labels=True, node_size=500, node_color='lightblue', edge_color='gray')
+
+        self.ax.clear()
         self.road_graph.rysuj(ax=self.ax)
         self.canvas.draw()
 
@@ -220,33 +220,31 @@ class RoadClearingApp:
                 return
 
             # Załaduj funkcje sąsiedztwa
-            neighborhood_functions = [
-                getattr(importlib.import_module(self.neighborhood_methods[method]), method.split('.')[-1]) 
-                for method in selected_methods
-            ]
+            neighborhood_functions = [self.neighborhood_methods[method] for method in selected_methods]
 
             problem = RoadClearingProblem(snowfall_forecast, self.road_graph, machines, Tmax)
-            best_solution, best_danger = problem.simulated_annealing_2(
+            best_solution, best_danger, diagnostics = problem.simulated_annealing_2(
                 initial_temperature=temperature,
                 cooling_rate=cooling_rate,
                 max_iterations=Tmax,
-                max_iterations_in_step=10,
-                neighborhood_functions=neighborhood_functions
+                choose_neighbour_function=neighborhood_functions
             )
 
-            self.visualize_solution(best_solution)
             messagebox.showinfo("Optymalizacja zakończona", f"Najlepszy poziom zagrożenia: {best_danger}")
+
+            self.visualize_solution(diagnostics, best_solution)
+
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się uruchomić optymalizacji: {e}")
 
-    def visualize_solution(self, solution):
+    def visualize_solution(self, diagnostics, solution):
         if not solution:
             return
-        self.ax.clear()
-        self.ax.set_title("Wartość funkcji celu w zależności od liczby iteracji", fontsize=12, color='black')
-        iterations = range(len(solution))
-        self.ax.plot(iterations, solution, marker='o', linestyle='-')
-        self.canvas.draw()
+
+        plot_diagnostic_charts(*diagnostics)
+
+        self.road_graph.rysuj_z_rozwiazaniem(solution, ax=self.ax)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
