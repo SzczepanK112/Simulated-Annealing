@@ -147,7 +147,12 @@ def pobierz_graf_osm_z_punktu(center_point, dist=800, dist_type="bbox", network_
 def get_graph_of_city(city_name: str, **kwargs):
     city_loc_dict = {
         "Kraków": (50.062756, 19.938077),
-        "Kęty": (49.88335218571101, 19.22146813090962)
+        "Kęty": (49.88335218571101, 19.22146813090962),
+        "Warszawa": (52.2303067675569, 20.984324785193277),
+        "Gdańsk": (54.35163704525984, 18.646516947567964),
+        "Wrocław": (51.11719673027559, 17.007465255279378),
+        "Poznań": (52.41008135266712, 16.929575089709026),
+        "Sandomierz": (50.687756998444975, 21.732591122191614)
                      }
 
     return pobierz_graf_osm_z_punktu(city_loc_dict[city_name], **kwargs)

@@ -135,10 +135,10 @@ class RoadClearingApp:
     def choose_location(self):
         city_window = tk.Toplevel(self.root)
         city_window.title("Wybierz miasto")
-        city_window.geometry("350x250")
+        city_window.geometry("350x300")
         tk.Label(city_window, text="Wybierz miasto:", font=("Arial", 12)).pack(pady=10)
 
-        cities = ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk", "Kęty"]
+        cities = ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk", "Sandomierz", "Kęty"]
         self.selected_city = tk.StringVar(value=cities[0])
 
         for city in cities:
