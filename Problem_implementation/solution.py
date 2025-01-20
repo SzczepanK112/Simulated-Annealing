@@ -316,14 +316,14 @@ class RoadClearingProblem:
         print(choose_f)
         # --- Używane funkcje_sąsiedztwa ---
 
-        if choose_f == 0:
+        if choose_f == 0: # modify_route_avoiding_vertex
             f_sasiad_1(self.machines, glebokosc_poszukiwan, self.road_layout, self.Tmax)
             '''
             Modyfikuje istniejącą trasę maszyny omijając jeden wierzchołek, zalezna od paramtru 'glebokosc_poszukiwan' 
             (im większy parametr tym bardziej nowe/zróżnicowane rozwiązanie otrzymamy)
             '''
 
-        elif choose_f == 1:
+        elif choose_f == 1: # reconstruct_route_from_stage
             f_sasiad_2(self.machines, self.road_layout, self.Tmax, param2)
             '''
             Rekonstruuje trase od losowo wybranego etapu, możliwość otrzymania duzych zmian przy wylosowaniu wczesnych etapów
