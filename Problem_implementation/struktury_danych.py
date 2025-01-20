@@ -374,7 +374,7 @@ class Graf:  # Obrazuje pelny rozklad ulic/skrzyzowan
                 facecolors='none', zorder=5, linewidth=3
             )
 
-        ax.show()
+        ax.legend()
 
     def rysuj_dwa_rozwiazania(self, rozwiazanie1: list, rozwiazanie2: list, size_x=10, size_y=10):
         """

@@ -14,7 +14,11 @@ class RoadClearingApp:
         self.root.title("Optymalizacja Odśnieżania Dróg")
         self.root.geometry("1700x950")
         self.root.configure(bg='white')
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
+
+        # Configure grid weight for main window
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
 
         # Stylizacja
         style = ttk.Style()
@@ -25,112 +29,228 @@ class RoadClearingApp:
         style.configure("Start.TButton", background="#555", foreground="black", font=("Arial", 12, "bold"), padding=10)
         style.configure("TEntry", background="#333", foreground="black")
 
-        # Główna ramka
+        # Main container frame using grid
         main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=3)  # Right frame gets more space
+        main_frame.grid_columnconfigure(0, weight=1)  # Left frame gets less space
 
-        # Układ okna
-        left_frame = ttk.Frame(main_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=False)
+        # Create a frame for the left side that will contain the canvas and scrollbar
+        left_container = ttk.Frame(main_frame)
+        left_container.grid(row=0, column=0, sticky="nsew")
+        left_container.grid_rowconfigure(0, weight=1)
+        left_container.grid_columnconfigure(0, weight=1)
 
+        # Create canvas and scrollbar for left panel
+        self.left_canvas = tk.Canvas(left_container, bg='white')
+        left_scrollbar = ttk.Scrollbar(left_container, orient="vertical", command=self.left_canvas.yview)
+
+        # Left frame (controls) - now inside canvas
+        left_frame = ttk.Frame(self.left_canvas)
+
+        # Configure scroll region when left frame changes
+        left_frame.bind('<Configure>', lambda e: self.left_canvas.configure(scrollregion=self.left_canvas.bbox("all")))
+
+        # Create window inside canvas for left frame
+        self.left_canvas.create_window((0, 0), window=left_frame, anchor="nw", width=left_container.winfo_reqwidth())
+
+        # Configure canvas scroll
+        self.left_canvas.configure(yscrollcommand=left_scrollbar.set)
+
+        # Pack canvas and scrollbar into left container
+        self.left_canvas.grid(row=0, column=0, sticky="nsew")
+        left_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Configure left frame grid
+        left_frame.grid_columnconfigure(0, weight=1)
+
+        # Right frame (graph)
         right_frame = ttk.Frame(main_frame)
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=5)
+        right_frame.grid_rowconfigure(0, weight=1)
+        right_frame.grid_columnconfigure(0, weight=1)
 
-        # Przycisk wczytania pliku
+        # Graph frame
+        self.graph_frame = ttk.Frame(right_frame)
+        self.graph_frame.grid(row=0, column=0, sticky="nsew")
+        self.graph_frame.grid_rowconfigure(0, weight=1)
+        self.graph_frame.grid_columnconfigure(0, weight=1)
+
+        # Create navigation frame below the graph
+        self.nav_frame = ttk.Frame(right_frame)
+        self.nav_frame.grid(row=1, column=0, sticky="ew", pady=5)
+
+        # Navigation buttons and label
+        self.prev_button = ttk.Button(self.nav_frame, text="←", command=self.show_previous_solution, state="disabled")
+        self.prev_button.pack(side=tk.LEFT, padx=5)
+
+        self.solution_label = ttk.Label(self.nav_frame, text="")
+        self.solution_label.pack(side=tk.LEFT, padx=20)
+
+        self.next_button = ttk.Button(self.nav_frame, text="→", command=self.show_next_solution, state="disabled")
+        self.next_button.pack(side=tk.LEFT, padx=5)
+
+        self.figure = plt.Figure(figsize=(10, 5))
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.figure, self.graph_frame)
+        self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+        # Initialize solution-related attributes
+        self.current_solution_index = 0
+        self.solutions = None
+
+        # Button frame
         button_frame = ttk.Frame(left_frame)
-        button_frame.pack(pady=5)
+        button_frame.grid(row=0, column=0, sticky="ew", pady=5)
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
 
         self.load_file_button = ttk.Button(button_frame, text="Wczytaj z pliku txt", command=self.load_file)
-        self.load_file_button.pack(side=tk.LEFT, padx=5)
+        self.load_file_button.grid(row=0, column=0, padx=2, sticky="ew")
 
         self.choose_location_button = ttk.Button(button_frame, text="Wybierz lokację", command=self.choose_location)
-        self.choose_location_button.pack(side=tk.LEFT, padx=5)
-        self.selected_city_label = ttk.Label(left_frame, text="Wybrane miasto: ")
-        self.selected_city_label.pack(pady=5)
+        self.choose_location_button.grid(row=0, column=1, padx=2, sticky="ew")
 
-        # Parametry optymalizacji
+        self.selected_city_label = ttk.Label(left_frame, text="Wybrane miasto: ")
+        self.selected_city_label.grid(row=1, column=0, pady=5, sticky="w")
+
+        # Parameters frame
         params_frame = ttk.Frame(left_frame)
-        params_frame.pack(pady=5)
+        params_frame.grid(row=2, column=0, sticky="ew", pady=5)
+        params_frame.grid_columnconfigure(0, weight=1)
+
+        # Parameters widgets
+        current_row = 0
 
         self.time_between_label = ttk.Label(params_frame, text="Czas pomiędzy opadami:")
-        self.time_between_label.pack(pady=5)
+        self.time_between_label.grid(row=current_row, column=0, sticky="w", pady=2)
+        current_row += 1
         self.time_between_entry = ttk.Entry(params_frame)
-        self.time_between_entry.pack()
+        self.time_between_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
+        current_row += 1
 
         self.snowfall_label = ttk.Label(params_frame, text="Prognoza opadów (np. [3,4,5,6]):")
-        self.snowfall_label.pack(pady=5)
+        self.snowfall_label.grid(row=current_row, column=0, sticky="w", pady=2)
+        current_row += 1
         self.snowfall_entry = ttk.Entry(params_frame)
-        self.snowfall_entry.pack()
+        self.snowfall_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
+        current_row += 1
 
         self.temperature_label = ttk.Label(params_frame, text="Temperatura:")
-        self.temperature_label.pack(pady=5)
+        self.temperature_label.grid(row=current_row, column=0, sticky="w", pady=2)
+        current_row += 1
         self.temperature_entry = ttk.Entry(params_frame)
-        self.temperature_entry.pack()
+        self.temperature_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
+        current_row += 1
 
         self.cooling_rate_label = ttk.Label(params_frame, text="Współczynnik chłodzenia (0.95 - 0.99):")
-        self.cooling_rate_label.pack(pady=5)
+        self.cooling_rate_label.grid(row=current_row, column=0, sticky="w", pady=2)
+        current_row += 1
         self.cooling_rate_entry = ttk.Entry(params_frame)
-        self.cooling_rate_entry.pack()
+        self.cooling_rate_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
+        current_row += 1
 
         self.max_iterations_label = ttk.Label(params_frame, text="Maksymalna liczba iteracji:")
-        self.max_iterations_label.pack(pady=5)
+        self.max_iterations_label.grid(row=current_row, column=0, sticky="w", pady=2)
+        current_row += 1
         self.max_iterations_entry = ttk.Entry(params_frame)
-        self.max_iterations_entry.pack()
+        self.max_iterations_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
 
-        # Lista maszyn
-        self.machine_list_frame = ttk.LabelFrame(left_frame, text='Zarządzanie maszynami', padding=10, height=250)
-        self.machine_list_frame.pack_propagate(False)
-        self.machine_list_frame.pack(pady=10, fill=tk.BOTH, expand=True)
-        self.machine_list = []
-        self.machine_canvas = tk.Canvas(self.machine_list_frame, height=250)
-        self.machine_scrollbar = ttk.Scrollbar(self.machine_list_frame, orient=tk.VERTICAL, command=self.machine_canvas.yview)
-        self.machine_canvas.configure(yscrollcommand=self.machine_scrollbar.set)
+        # Machine list frame
+        self.machine_list_frame = ttk.LabelFrame(left_frame, text='Zarządzanie maszynami', padding=10)
+        self.machine_list_frame.grid(row=3, column=0, sticky="nsew", pady=10)
+        self.machine_list_frame.grid_rowconfigure(0, weight=1)
+        self.machine_list_frame.grid_columnconfigure(0, weight=1)
+
+        # Scrollable machine list
+        self.machine_canvas = tk.Canvas(self.machine_list_frame)
+        self.machine_scrollbar = ttk.Scrollbar(self.machine_list_frame, orient=tk.VERTICAL,
+                                               command=self.machine_canvas.yview)
         self.scrollable_frame = ttk.Frame(self.machine_canvas)
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.machine_canvas.configure(
-                scrollregion=self.machine_canvas.bbox("all")
-            )
-        )
-        self.machine_window = self.machine_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw", width=250)
+
+        self.scrollable_frame.bind("<Configure>",
+                                   lambda e: self.machine_canvas.configure(
+                                       scrollregion=self.machine_canvas.bbox("all")))
+
+        self.machine_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.machine_canvas.configure(yscrollcommand=self.machine_scrollbar.set)
-        self.machine_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
-        self.machine_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=5)
-        self.machine_canvas.configure(scrollregion=self.machine_canvas.bbox('all'))
 
+        self.machine_canvas.grid(row=0, column=0, sticky="nsew")
+        self.machine_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        self.machine_list = []
+
+        # Add machine button
         self.add_machine_button = ttk.Button(left_frame, text="Dodaj maszynę", command=self.add_machine)
-        self.machine_list_frame.pack(pady=10, fill=tk.BOTH, expand=True)
-        self.add_machine_button.pack(pady=5, fill=tk.X)
+        self.add_machine_button.grid(row=4, column=0, sticky="ew", pady=5)
 
-        # Wybór metody sąsiedztwa
+        # Neighborhood methods frame
         self.neighborhood_methods = {
-            "MK1": 0,  # Załaduj funkcję
-            "MK2": 1,  # Załaduj funkcję
-            "SK1": 2,  # Załaduj funkcję
-            "SK2": 3  # Załaduj funkcję
+            "MK1": 0,
+            "MK2": 1,
+            "SK1": 2,
+            "SK2": 3
         }
 
         self.neighborhood_choices = {}
-        self.neighborhood_frame = ttk.LabelFrame(left_frame, text='Wybierz wykorzystywane metody tworzenia sąsiedztwa', padding=10)
-        self.neighborhood_frame.pack(pady=10, fill=tk.X, ipadx=5, ipady=5, expand=False)
-        for method in self.neighborhood_methods.keys():
+        self.neighborhood_frame = ttk.LabelFrame(left_frame, text='Wybierz wykorzystywane metody tworzenia sąsiedztwa',
+                                                 padding=10)
+        self.neighborhood_frame.grid(row=5, column=0, sticky="ew", pady=10)
+
+        for i, method in enumerate(self.neighborhood_methods.keys()):
             var = tk.BooleanVar()
             chk = ttk.Checkbutton(self.neighborhood_frame, text=method, variable=var)
-            chk.pack(anchor='w')
+            chk.grid(row=i, column=0, sticky="w")
             self.neighborhood_choices[method] = var
 
-        # Miejsce na graf
-        self.graph_frame = ttk.Frame(right_frame)
-        self.graph_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        # Start button
+        self.start_button = ttk.Button(left_frame, text="Start", command=self.run_optimization, style="Start.TButton")
+        self.start_button.grid(row=6, column=0, sticky="ew", pady=15)
 
-        self.figure = plt.Figure(figsize=(10, 5))  # Poszerzenie wykresu horyzontalnie
+        # Graph frame
+        self.graph_frame = ttk.Frame(right_frame)
+        self.graph_frame.grid(row=0, column=0, sticky="nsew")
+        self.graph_frame.grid_rowconfigure(0, weight=1)
+        self.graph_frame.grid_columnconfigure(0, weight=1)
+
+        self.figure = plt.Figure(figsize=(10, 5))
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.figure, self.graph_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
 
-        # Przycisk start na dole
-        self.start_button = ttk.Button(left_frame, text="Start", command=self.run_optimization, style="Start.TButton")
-        self.start_button.pack(side=tk.BOTTOM, pady=15, fill=tk.X, ipadx=10, ipady=5)
+        # Bind resize event
+        self.root.bind('<Configure>', self.on_window_resize)
+
+        # Bind mouse wheel to both main left panel and machine list scrolling
+        self.bind_mouse_wheel(left_frame)
+
+    def bind_mouse_wheel(self, widget):
+        """Recursively bind mouse wheel to all widgets"""
+        widget.bind("<MouseWheel>", self.on_mouse_wheel)
+        widget.bind("<Button-4>", self.on_mouse_wheel)
+        widget.bind("<Button-5>", self.on_mouse_wheel)
+        for child in widget.winfo_children():
+            self.bind_mouse_wheel(child)
+
+    def on_mouse_wheel(self, event):
+        """Handle mouse wheel scrolling"""
+        if event.num == 5 or event.delta == -120:  # Scroll down
+            self.left_canvas.yview_scroll(1, "units")
+        elif event.num == 4 or event.delta == 120:  # Scroll up
+            self.left_canvas.yview_scroll(-1, "units")
+        return "break"  # Prevent event propagation
+
+    def on_window_resize(self, event):
+        if hasattr(self, 'figure') and event.widget == self.root:
+            # Update canvas width to match container
+            self.left_canvas.itemconfig(1, width=event.width // 4)  # Adjust divisor as needed
+
+            # Update graph size
+            width = self.graph_frame.winfo_width() / 100
+            height = self.graph_frame.winfo_height() / 100
+            self.figure.set_size_inches(width, height)
+            self.canvas.draw()
 
     def choose_location(self):
         city_window = tk.Toplevel(self.root)
@@ -245,11 +365,61 @@ class RoadClearingApp:
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się uruchomić optymalizacji: {e}")
 
+    def show_previous_solution(self):
+        if self.solutions and self.current_solution_index > 0:
+            self.current_solution_index -= 1
+            self.update_solution_visualization()
+
+    def show_next_solution(self):
+        if self.solutions and self.current_solution_index < len(self.solutions) - 1:
+            self.current_solution_index += 1
+            self.update_solution_visualization()
+
+    def update_solution_visualization(self):
+        if not self.solutions:
+            return
+
+        # Clear previous plot
+        self.ax.clear()
+
+        # Draw the current solution
+        self.road_graph.rysuj_z_rozwiazaniem(
+            self.solutions[self.current_solution_index].route,
+            ax=self.ax,
+            show_labels=False,
+            show_edge_labels=False,
+            node_size=50,
+            edge_width=2
+        )
+
+        # Update the canvas
+        self.canvas.draw()
+
+        # Update the solution label
+        self.solution_label.config(
+            text=f"Trasa {self.current_solution_index + 1} z {len(self.solutions)}"
+        )
+
+        # Update button states
+        self.prev_button.config(state="normal" if self.current_solution_index > 0 else "disabled")
+        self.next_button.config(state="normal" if self.current_solution_index < len(self.solutions) - 1 else "disabled")
+
     def visualize_solution(self, diagnostics, solution):
         if not solution:
             return
 
-        self.road_graph.rysuj_z_rozwiazaniem(solution[0], ax=self.ax)
+        # Store the solutions
+        self.solutions = solution
+        self.current_solution_index = 0
+
+        # Enable navigation buttons if there are multiple solutions
+        if len(solution) > 1:
+            self.next_button.config(state="normal")
+
+        # Update the visualization
+        self.update_solution_visualization()
+
+        # Show diagnostic charts in a new window
         plot_diagnostic_charts(*diagnostics)
 
 
