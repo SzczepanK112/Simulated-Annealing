@@ -1,58 +1,58 @@
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 
-# Lista danych wykresów (globalna zmienna do aktualizacji w funkcji)
+# List of plot data (global variable for updating in the function)
 plots = []
-current_plot = [0]  # Indeks aktualnego wykresu
+current_plot = [0]  # Index of the current plot
 
 
 def update_plot(ax, index):
-    """Aktualizuje wykres na podstawie indeksu."""
+    """Updates the plot based on the index."""
     plot = plots[index]
     ax.clear()
     ax.plot(plot["x"], plot["y"])
     ax.set_title(plot["title"])
     ax.set_ylabel(plot["ylabel"])
-    ax.set_xlabel("Iteracja")
+    ax.set_xlabel("Iteration")
     ax.grid(True)
     fig.canvas.draw()
 
 
 def next_plot(event):
-    """Przełącza na kolejny wykres."""
+    """Switches to the next plot."""
     if current_plot[0] < len(plots) - 1:
         current_plot[0] += 1
         update_plot(ax, current_plot[0])
 
 
 def prev_plot(event):
-    """Przełącza na poprzedni wykres."""
+    """Switches to the previous plot."""
     if current_plot[0] > 0:
         current_plot[0] -= 1
         update_plot(ax, current_plot[0])
 
 
 def plot_diagnostic_charts(danger, best_danger, temperature):
-    """Rysuje interaktywne wykresy diagnostyczne."""
-    global plots, fig, ax  # Odwołanie do globalnych zmiennych
+    """Draws interactive diagnostic charts."""
+    global plots, fig, ax  # Reference to global variables
 
-    # Aktualizacja danych wykresów
+    # Update plot data
     plots = [
-        {"title": "Poziom niebezpieczeństwa osiągnięty w danej iteracji", "x": range(len(danger)), "y": danger,
-         "ylabel": "Niebezpieczeństwo"},
-        {"title": "Zaakceptowany poziom niebezpieczeństwa", "x": range(len(best_danger)), "y": best_danger,
-         "ylabel": "Niebezpieczeństwo"},
-        {"title": "Temperatura", "x": range(len(temperature)), "y": temperature, "ylabel": ""},
+        {"title": "Danger level achieved in each iteration", "x": range(len(danger)), "y": danger,
+         "ylabel": "Danger"},
+        {"title": "Accepted danger level", "x": range(len(best_danger)), "y": best_danger,
+         "ylabel": "Danger"},
+        {"title": "Temperature", "x": range(len(temperature)), "y": temperature, "ylabel": ""},
     ]
-    current_plot[0] = 0  # Reset indeksu wykresu
+    current_plot[0] = 0  # Reset plot index
 
-    # Tworzenie figury i osi
+    # Create figure and axis
     fig, ax = plt.subplots(figsize=(10, 7))
-    plt.subplots_adjust(bottom=0.2)  # Miejsce na przyciski
+    plt.subplots_adjust(bottom=0.2)  # Space for buttons
 
-    # Dodawanie przycisków
-    ax_prev = plt.axes((0.1, 0.05, 0.15, 0.075))  # Współrzędne przycisku poprzedniego
-    ax_next = plt.axes((0.8, 0.05, 0.15, 0.075))  # Współrzędne przycisku następnego
+    # Add buttons
+    ax_prev = plt.axes((0.1, 0.05, 0.15, 0.075))  # Coordinates for the previous button
+    ax_next = plt.axes((0.8, 0.05, 0.15, 0.075))  # Coordinates for the next button
 
     btn_prev = Button(ax_prev, "Previous")
     btn_next = Button(ax_next, "Next")
@@ -60,10 +60,10 @@ def plot_diagnostic_charts(danger, best_danger, temperature):
     btn_prev.on_clicked(prev_plot)
     btn_next.on_clicked(next_plot)
 
-    # Rysowanie początkowego wykresu
+    # Draw the initial plot
     update_plot(ax, current_plot[0])
 
-    # Wyświetlanie okna interaktywnego
-    plt.show(block=False)  # Nie blokuj programu
-    while plt.get_fignums():  # Dopóki istnieją otwarte okna
-        plt.pause(0.1)  # Aktualizuj GUI
+    # Display the interactive window
+    plt.show(block=False)  # Do not block the program
+    while plt.get_fignums():  # While there are open windows
+        plt.pause(0.1)  # Update the GUI

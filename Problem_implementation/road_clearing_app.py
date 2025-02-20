@@ -2,16 +2,15 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from wczytanie_mapy import wczytaj_graf_z_pliku  # Funkcja do wczytania grafu
-from solution import RoadClearingProblem, Machine  # Algorytm optymalizacji
+from map_import import load_graph_from_file
+from solution import RoadClearingProblem, Machine
 from diagnostics import plot_diagnostic_charts
-from fast_map_import import get_graph_of_city
-
+from map_import import get_graph_of_city
 
 class RoadClearingApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Optymalizacja Odśnieżania Dróg")
+        self.root.title("Road Clearing Optimization")
         self.root.geometry("1700x950")
         self.root.configure(bg='white')
         self.root.resizable(True, True)
@@ -20,7 +19,7 @@ class RoadClearingApp:
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        # Stylizacja
+        # Styling
         style = ttk.Style()
         style.configure("TFrame", background="white")
         style.configure("TLabel", background="white", foreground="black", font=("Arial", 10))
@@ -106,13 +105,13 @@ class RoadClearingApp:
         button_frame.grid_columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(1, weight=1)
 
-        self.load_file_button = ttk.Button(button_frame, text="Wczytaj z pliku txt", command=self.load_file)
+        self.load_file_button = ttk.Button(button_frame, text="Load from txt file", command=self.load_file)
         self.load_file_button.grid(row=0, column=0, padx=2, sticky="ew")
 
-        self.choose_location_button = ttk.Button(button_frame, text="Wybierz lokację", command=self.choose_location)
+        self.choose_location_button = ttk.Button(button_frame, text="Choose location", command=self.choose_location)
         self.choose_location_button.grid(row=0, column=1, padx=2, sticky="ew")
 
-        self.selected_city_label = ttk.Label(left_frame, text="Wybrane miasto: ")
+        self.selected_city_label = ttk.Label(left_frame, text="Selected city: ")
         self.selected_city_label.grid(row=1, column=0, pady=5, sticky="w")
 
         # Parameters frame
@@ -123,42 +122,42 @@ class RoadClearingApp:
         # Parameters widgets
         current_row = 0
 
-        self.time_between_label = ttk.Label(params_frame, text="Czas pomiędzy opadami:")
+        self.time_between_label = ttk.Label(params_frame, text="Time between snowfalls:")
         self.time_between_label.grid(row=current_row, column=0, sticky="w", pady=2)
         current_row += 1
         self.time_between_entry = ttk.Entry(params_frame)
         self.time_between_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
         current_row += 1
 
-        self.snowfall_label = ttk.Label(params_frame, text="Prognoza opadów (np. [3,4,5,6]):")
+        self.snowfall_label = ttk.Label(params_frame, text="Snowfall forecast (e.g., [3,4,5,6]):")
         self.snowfall_label.grid(row=current_row, column=0, sticky="w", pady=2)
         current_row += 1
         self.snowfall_entry = ttk.Entry(params_frame)
         self.snowfall_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
         current_row += 1
 
-        self.temperature_label = ttk.Label(params_frame, text="Temperatura:")
+        self.temperature_label = ttk.Label(params_frame, text="Temperature:")
         self.temperature_label.grid(row=current_row, column=0, sticky="w", pady=2)
         current_row += 1
         self.temperature_entry = ttk.Entry(params_frame)
         self.temperature_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
         current_row += 1
 
-        self.cooling_rate_label = ttk.Label(params_frame, text="Współczynnik chłodzenia (0.95 - 0.99):")
+        self.cooling_rate_label = ttk.Label(params_frame, text="Cooling rate (0.95 - 0.99):")
         self.cooling_rate_label.grid(row=current_row, column=0, sticky="w", pady=2)
         current_row += 1
         self.cooling_rate_entry = ttk.Entry(params_frame)
         self.cooling_rate_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
         current_row += 1
 
-        self.max_iterations_label = ttk.Label(params_frame, text="Maksymalna liczba iteracji:")
+        self.max_iterations_label = ttk.Label(params_frame, text="Maximum iterations:")
         self.max_iterations_label.grid(row=current_row, column=0, sticky="w", pady=2)
         current_row += 1
         self.max_iterations_entry = ttk.Entry(params_frame)
         self.max_iterations_entry.grid(row=current_row, column=0, sticky="ew", pady=2)
 
         # Machine list frame
-        self.machine_list_frame = ttk.LabelFrame(left_frame, text='Zarządzanie maszynami', padding=10)
+        self.machine_list_frame = ttk.LabelFrame(left_frame, text='Machine Management', padding=10)
         self.machine_list_frame.grid(row=3, column=0, sticky="nsew", pady=10)
         self.machine_list_frame.grid_rowconfigure(0, weight=1)
         self.machine_list_frame.grid_columnconfigure(0, weight=1)
@@ -182,7 +181,7 @@ class RoadClearingApp:
         self.machine_list = []
 
         # Add machine button
-        self.add_machine_button = ttk.Button(left_frame, text="Dodaj maszynę", command=self.add_machine)
+        self.add_machine_button = ttk.Button(left_frame, text="Add Machine", command=self.add_machine)
         self.add_machine_button.grid(row=4, column=0, sticky="ew", pady=5)
 
         # Neighborhood methods frame
@@ -194,7 +193,7 @@ class RoadClearingApp:
         }
 
         self.neighborhood_choices = {}
-        self.neighborhood_frame = ttk.LabelFrame(left_frame, text='Wybierz wykorzystywane metody tworzenia sąsiedztwa',
+        self.neighborhood_frame = ttk.LabelFrame(left_frame, text='Select Neighborhood Methods',
                                                  padding=10)
         self.neighborhood_frame.grid(row=5, column=0, sticky="ew", pady=10)
 
@@ -254,58 +253,58 @@ class RoadClearingApp:
 
     def choose_location(self):
         city_window = tk.Toplevel(self.root)
-        city_window.title("Wybierz miasto")
+        city_window.title("Choose City")
         city_window.geometry("350x300")
-        tk.Label(city_window, text="Wybierz miasto:", font=("Arial", 12)).pack(pady=10)
+        tk.Label(city_window, text="Choose city:", font=("Arial", 12)).pack(pady=10)
 
-        cities = ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk", "Sandomierz", "Kęty"]
+        cities = ["Warsaw", "Krakow", "Wroclaw", "Poznan", "Gdansk", "Sandomierz", "Kety"]
         self.selected_city = tk.StringVar(value=cities[0])
 
         for city in cities:
             tk.Radiobutton(city_window, text=city, variable=self.selected_city, value=city).pack(anchor='w')
 
         def set_city():
-            self.selected_city_label.config(text=f"Wybrane miasto: {self.selected_city.get()}")
+            self.selected_city_label.config(text=f"Selected city: {self.selected_city.get()}")
             city_window.destroy()
             self.root.update_idletasks()
             city_window.destroy()
 
             try:
-                self.road_graph = get_graph_of_city(self.selected_city.get(), custom_drogi=["tertiary", "residential"])
-                print("Graf załadowany")
+                self.road_graph = get_graph_of_city(self.selected_city.get(), custom_roads=["tertiary", "residential"])
+                print("Graph loaded")
                 self.draw_graph()
             except Exception as e:
-                messagebox.showerror("Błąd", f"Nie udało się wczytać grafu: {e}")
+                messagebox.showerror("Error", f"Failed to load graph: {e}")
 
         ttk.Button(city_window, text="OK", command=set_city).pack(pady=10)
 
     def load_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Pliki tekstowe", "*.txt")])
+        file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
         if file_path:
             try:
-                self.road_graph = wczytaj_graf_z_pliku(file_path)
-                print("Graf załadowany")
+                self.road_graph = load_graph_from_file(file_path)
+                print("Graph loaded")
                 self.draw_graph()
-                messagebox.showinfo("Sukces", "Plik został wczytany poprawnie!")
+                messagebox.showinfo("Success", "File loaded successfully!")
             except Exception as e:
-                messagebox.showerror("Błąd", f"Nie udało się wczytać grafu: {e}")
+                messagebox.showerror("Error", f"Failed to load graph: {e}")
 
     def draw_graph(self):
         if not hasattr(self, 'road_graph'):
-            messagebox.showerror("Błąd", "Graf nie został wczytany.")
+            messagebox.showerror("Error", "Graph not loaded.")
             return
 
         self.ax.clear()
-        self.road_graph.rysuj(ax=self.ax, show_labels=False, show_edge_labels=False, node_size=50, edge_width=2)
+        self.road_graph.draw(ax=self.ax, show_labels=False, show_edge_labels=False, node_size=50, edge_width=2)
         self.canvas.draw()
 
     def add_machine(self):
         if len(self.machine_list) >= 7:
-            messagebox.showwarning("Limit osiągnięty", "Nie można dodać więcej niż 7 maszyn.")
+            messagebox.showwarning("Limit reached", "Cannot add more than 7 machines.")
             return
         frame = ttk.Frame(self.scrollable_frame)
         frame.pack(fill=tk.X, pady=2)
-        label = ttk.Label(frame, text=f"Maszyna {len(self.machine_list) + 1} - Prędkość (km/h):")
+        label = ttk.Label(frame, text=f"Machine {len(self.machine_list) + 1} - Speed (km/h):")
         label.pack(side=tk.LEFT)
         entry = ttk.Entry(frame, width=5, font=("Arial", 10), justify='center', foreground='black')
         entry.pack(side=tk.LEFT, padx=5)
@@ -323,7 +322,7 @@ class RoadClearingApp:
 
     def run_optimization(self):
         if not hasattr(self, 'road_graph') or self.road_graph is None:
-            messagebox.showerror("Błąd", "Najpierw wczytaj plik z układem ulic.")
+            messagebox.showerror("Error", "First load a file with the street layout.")
             return
 
         try:
@@ -339,31 +338,31 @@ class RoadClearingApp:
                     speed = float(entry.get())
                     machines.append(Machine(speed=speed))
                 except ValueError:
-                    messagebox.showerror("Błąd", "Podaj poprawne wartości prędkości dla wszystkich maszyn.")
+                    messagebox.showerror("Error", "Enter valid speed values for all machines.")
                     return
 
             selected_methods = [key for key, var in self.neighborhood_choices.items() if var.get()]
             if not selected_methods:
-                messagebox.showerror("Błąd", "Wybierz przynajmniej jedną metodę sąsiedztwa.")
+                messagebox.showerror("Error", "Select at least one neighborhood method.")
                 return
 
-            # Załaduj funkcje sąsiedztwa
+            # Load neighborhood functions
             neighborhood_functions = [self.neighborhood_methods[method] for method in selected_methods]
 
             problem = RoadClearingProblem(snowfall_forecast, self.road_graph, machines, Tmax)
-            best_solution, best_danger, diagnostics = problem.simulated_annealing_2(
+            best_solution, best_danger, diagnostics = problem.simulated_annealing(
                 initial_temperature=temperature,
                 cooling_rate=cooling_rate,
                 max_iterations=max_iterations,
                 choose_neighbour_function=neighborhood_functions
             )
 
-            messagebox.showinfo("Optymalizacja zakończona", f"Najlepszy poziom zagrożenia: {best_danger}")
+            messagebox.showinfo("Optimization complete", f"Best danger level: {best_danger}")
 
             self.visualize_solution(diagnostics, best_solution)
 
         except Exception as e:
-            messagebox.showerror("Błąd", f"Nie udało się uruchomić optymalizacji: {e}")
+            messagebox.showerror("Error", f"Failed to run optimization: {e}")
 
     def show_previous_solution(self):
         if self.solutions and self.current_solution_index > 0:
@@ -383,7 +382,7 @@ class RoadClearingApp:
         self.ax.clear()
 
         # Draw the current solution
-        self.road_graph.rysuj_z_rozwiazaniem(
+        self.road_graph.draw_with_solution(
             self.solutions[self.current_solution_index].route,
             ax=self.ax,
             show_labels=False,
@@ -397,7 +396,7 @@ class RoadClearingApp:
 
         # Update the solution label
         self.solution_label.config(
-            text=f"Trasa {self.current_solution_index + 1} z {len(self.solutions)}"
+            text=f"Route {self.current_solution_index + 1} of {len(self.solutions)}"
         )
 
         # Update button states
@@ -421,7 +420,6 @@ class RoadClearingApp:
 
         # Show diagnostic charts in a new window
         plot_diagnostic_charts(*diagnostics)
-
 
 if __name__ == "__main__":
     root = tk.Tk()
